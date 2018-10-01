@@ -1,0 +1,29 @@
+{
+  "name": "start-android-emulator",
+  "version": "0.1.0",
+  "description": "A simple library to start an Android emulator on your local machine",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wswebcreation/start-android-emulator.git"
+  },
+  "keywords": [
+    "Android",
+    "cli",
+    "emulator",
+    "cli"
+  ],
+  "author": "wswebcreation",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/wswebcreation/start-android-emulator/issues"
+  },
+  "homepage": "https://github.com/wswebcreation/start-android-emulator#readme",
+  "dependencies": {
+    "chalk": "^2.4.1",
+    "inquirer": "^6.2.0"
+  },
+  "engines": {
+    "node": ">=6.9.x"
+  }
+}
