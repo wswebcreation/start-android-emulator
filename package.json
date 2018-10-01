@@ -2,6 +2,9 @@
   "name": "start-android-emulator",
   "version": "0.1.0",
   "description": "A simple library to start an Android emulator on your local machine",
+  "bin": {
+    "start-android-emualtor": "./bin/start-android-emulator.js"
+  },
   "main": "index.js",
   "repository": {
     "type": "git",

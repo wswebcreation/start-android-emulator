@@ -3,7 +3,7 @@ const { existsSync } = require('fs');
 const { cyan, green, red } = require('chalk');
 const { prompt } = require('inquirer');
 
-const ANDROID_EMULATOR_PATH = `${process.env.ANDROID_HOME}/tools/emulators`;
+const ANDROID_EMULATOR_PATH = `${process.env.ANDROID_HOME}/tools/emulator`;
 
 console.log(cyan(`
 ===============================
@@ -42,7 +42,6 @@ if (emulators.length > 0) {
 =========================================================
 `));
       try {
-        console.log('existsSync(ANDROID_EMULATOR_PATH) = ', existsSync(ANDROID_EMULATOR_PATH));
         const runOnEmulator = spawnSync(
           ANDROID_EMULATOR_PATH,
           ['-avd', answer.emulator, answer.wipeData === 'Yes' ? '-wipe-data' : '-no-snapshot'],
