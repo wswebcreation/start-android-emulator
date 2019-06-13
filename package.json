@@ -1,6 +1,6 @@
 {
   "name": "start-android-emulator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A simple library to start an Android emulator on your local machine",
   "main": "build/index.js",
   "scripts": {
