@@ -5,7 +5,17 @@
   "bin": {
     "start-android-emulator": "./bin/start-android-emulator.js"
   },
-  "main": "index.js",
+  "main": "build/index.js",
+  "scripts": {
+    "clean": "rimraf coverage build .tmp",
+    "compile": "babel lib/ -d build/",
+    "lint": "eslint ./lib",
+    "watch": "npm run compile -- --watch",
+    "release": "np",
+    "precompile": "npm run clean",
+    "prepublish": "npm run compile",
+    "prerelease": "npm run compile"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/wswebcreation/start-android-emulator.git"
@@ -23,10 +33,14 @@
   },
   "homepage": "https://github.com/wswebcreation/start-android-emulator#readme",
   "dependencies": {
-    "chalk": "^2.4.1",
-    "inquirer": "^6.2.0"
+    "chalk": "^2.4.2",
+    "inquirer": "^6.3.1"
   },
-  "engines": {
-    "node": ">=6.9.x"
+  "devDependencies": {
+    "@babel/cli": "^7.4.4",
+    "@babel/core": "^7.4.5",
+    "@babel/preset-env": "^7.4.5",
+    "np": "^5.0.3",
+    "rimraf": "^2.6.3"
   }
 }

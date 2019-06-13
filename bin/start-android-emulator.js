@@ -10,7 +10,6 @@ const parentPath = resolve(cwd, '..');
 const dir = __dirname;
 const folder = cwd.replace(parentPath, '').substring(1);
 
-const isProjectVersion = folder === nodeModuleName;
 let isLocalVersion = false;
 
 let printCyan, printMagenta, printGreen;
