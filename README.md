@@ -7,7 +7,7 @@ This module gives you the opportunity to start of of the installed Android emula
 
 > It relies on the `ANDROID_HOME` environment variable to be set correct!
 
-> **Currently only MAC and Windows is supported**
+> **Currently only MAC and Windows are supported**
 
 ![start-android-emualtor](./assets/start-android-emulator.gif)
 
