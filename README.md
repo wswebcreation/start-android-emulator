@@ -1,13 +1,13 @@
 # start-android-emulator
 
-A simple library to start an Android emulator on your local machine (currently only Mac is supported) when you already installed / downloaded Android emulators on your local machine
+A simple library to start an Android emulator on your local machine (currently only Mac and Windows are supported) when you already installed / downloaded Android emulators on your local machine
 
 ## What can it do?
 This module gives you the opportunity to start of of the installed Android emulators on you local machine from the command line like below
 
 > It relies on the `ANDROID_HOME` environment variable to be set correct!
 
-> **Currently only MAC is supported**
+> **Currently only MAC and Windows is supported**
 
 ![start-android-emualtor](./assets/start-android-emulator.gif)
 
