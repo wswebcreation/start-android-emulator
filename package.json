@@ -7,7 +7,6 @@
   "scripts": {
     "clean": "rimraf coverage build .tmp",
     "compile": "babel lib/ -d build/",
-    "lint": "eslint ./lib",
     "watch": "npm run compile -- --watch",
     "release": "np",
     "precompile": "npm run clean",
@@ -31,14 +30,14 @@
   },
   "homepage": "https://github.com/wswebcreation/start-android-emulator#readme",
   "dependencies": {
-    "chalk": "^2.4.2",
-    "inquirer": "^6.3.1"
+    "chalk": "^4.1.2",
+    "inquirer": "^8.2.0"
   },
   "devDependencies": {
-    "@babel/cli": "^7.4.4",
-    "@babel/core": "^7.4.5",
-    "@babel/preset-env": "^7.4.5",
-    "np": "^5.0.3",
-    "rimraf": "^2.6.3"
+    "@babel/cli": "^7.16.8",
+    "@babel/core": "^7.16.12",
+    "@babel/preset-env": "^7.16.11",
+    "np": "^7.6.0",
+    "rimraf": "^3.0.2"
   }
 }
