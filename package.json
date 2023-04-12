@@ -8,6 +8,7 @@
     "clean": "rimraf coverage build .tmp",
     "compile": "babel lib/ -d build/",
     "watch": "npm run compile -- --watch",
+    "test": "",
     "release": "np",
     "precompile": "npm run clean",
     "prepublish": "npm run compile",
