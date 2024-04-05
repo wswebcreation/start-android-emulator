@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { spawn, execFileSync } from "child_process";
 import { existsSync } from "fs";
 import { select } from "@inquirer/prompts";
