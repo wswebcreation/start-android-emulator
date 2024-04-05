@@ -2,17 +2,10 @@
   "name": "start-android-emulator",
   "version": "2.0.1",
   "description": "A simple library to start an Android emulator on your local machine",
-  "bin": "build/index.js",
-  "main": "build/index.js",
+  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "clean": "rimraf coverage build .tmp",
-    "compile": "babel lib/ -d build/",
-    "watch": "npm run compile -- --watch",
-    "test": "",
-    "release": "np",
-    "precompile": "npm run clean",
-    "prepublish": "npm run compile",
-    "prerelease": "npm run compile"
+    "release": "np"
   },
   "repository": {
     "type": "git",
@@ -31,14 +24,9 @@
   },
   "homepage": "https://github.com/wswebcreation/start-android-emulator#readme",
   "dependencies": {
-    "chalk": "^4.1.2",
-    "inquirer": "^8.2.5"
+    "@inquirer/prompts": "^4.3.1"
   },
   "devDependencies": {
-    "@babel/cli": "^7.21.0",
-    "@babel/core": "^7.21.4",
-    "@babel/preset-env": "^7.21.4",
-    "np": "^7.7.0",
-    "rimraf": "^3.0.2"
+    "np": "^10.0.2"
   }
 }
