@@ -1,15 +1,26 @@
 {
   "name": "start-android-emulator",
-  "version": "3.0.2",
-  "description": "A simple library to start an Android emulator on your local machine",
+  "version": "4.0.0",
+  "description": "Start an Android emulator from your terminal, and set up Java and the Android SDK when they are missing",
   "bin": {
-    "start-android-emulator": "./index.js"
+    "start-android-emulator": "./dist/cli.js"
   },
-  "main": "index.js",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
-    "test": "",
-    "release": "np"
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "test": "node --experimental-test-module-mocks --test \"test/**/*.test.ts\"",
+    "prepublishOnly": "npm run build",
+    "test:watch": "node --experimental-test-module-mocks --test --watch \"test/**/*.test.ts\""
   },
   "repository": {
     "type": "git",
@@ -19,7 +30,9 @@
     "Android",
     "cli",
     "emulator",
-    "cli"
+    "avd",
+    "android-sdk",
+    "appium"
   ],
   "author": "wswebcreation",
   "license": "MIT",
@@ -28,9 +41,16 @@
   },
   "homepage": "https://github.com/wswebcreation/start-android-emulator#readme",
   "dependencies": {
-    "@inquirer/prompts": "^4.3.1"
+    "@inquirer/prompts": "^8.7.3"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=24"
   },
   "devDependencies": {
-    "np": "^10.0.2"
+    "@types/node": "^24.19.2",
+    "typescript": "^7.0.2"
   }
 }
