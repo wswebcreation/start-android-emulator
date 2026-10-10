@@ -49,7 +49,7 @@ test("Java is java.exe, directly in the JDK folder (no Contents/Home like on a M
   assert.equal(home, join(homedir(), ".jdks", "temurin-21", "jdk-21.0.2+13"));
 });
 
-test("the SDK tools are .bat files and the emulator is an .exe", () => {
+test("the SDK tools are .bat files, the emulator and adb are .exe", () => {
   const dir = join(root, "sdk");
   assert.equal(sdk.sdkTool(dir, "sdkmanager"), null);
   touch(join(dir, "cmdline-tools", "latest", "bin", "sdkmanager.bat"));
@@ -58,6 +58,10 @@ test("the SDK tools are .bat files and the emulator is an .exe", () => {
   assert.equal(sdk.emulatorBinary(dir), null);
   touch(join(dir, "emulator", "emulator.exe"));
   assert.equal(sdk.emulatorBinary(dir), join(dir, "emulator", "emulator.exe"));
+
+  assert.equal(sdk.adbBinary(dir), null);
+  touch(join(dir, "platform-tools", "adb.exe"));
+  assert.equal(sdk.adbBinary(dir), join(dir, "platform-tools", "adb.exe"));
 });
 
 test("the command-line tools are the Windows build", async () => {

@@ -64,6 +64,12 @@ export function emulatorBinary(sdk: string): string | null {
   return existsSync(file) ? file : null;
 }
 
+/** adb, or null when platform-tools is not installed. */
+export function adbBinary(sdk: string): string | null {
+  const file = join(sdk, "platform-tools", exe("adb"));
+  return existsSync(file) ? file : null;
+}
+
 export function platformToolsDirs(sdk: string): string[] {
   return [join(sdk, "platform-tools"), join(sdk, "emulator")];
 }
