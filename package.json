@@ -8,7 +8,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "test": "node --experimental-test-module-mocks --test \"test/**/*.test.ts\"",
     "prepublishOnly": "npm run build",
     "release": "np"
   },
@@ -37,7 +38,7 @@
     "node": ">=24"
   },
   "devDependencies": {
-    "@types/node": "^20.19.43",
+    "@types/node": "^24.19.2",
     "np": "^12.1.1",
     "typescript": "^7.0.2"
   }
