@@ -3,12 +3,13 @@
   "version": "3.0.2",
   "description": "A simple library to start an Android emulator on your local machine",
   "bin": {
-    "start-android-emulator": "./index.js"
+    "start-android-emulator": "./dist/cli.js"
   },
-  "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
     "release": "np"
   },
   "repository": {
@@ -18,8 +19,7 @@
   "keywords": [
     "Android",
     "cli",
-    "emulator",
-    "cli"
+    "emulator"
   ],
   "author": "wswebcreation",
   "license": "MIT",
@@ -28,9 +28,17 @@
   },
   "homepage": "https://github.com/wswebcreation/start-android-emulator#readme",
   "dependencies": {
-    "@inquirer/prompts": "^4.3.1"
+    "@inquirer/prompts": "^8.7.3"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=24"
   },
   "devDependencies": {
-    "np": "^10.0.2"
+    "@types/node": "^20.19.43",
+    "np": "^12.1.1",
+    "typescript": "^7.0.2"
   }
 }
