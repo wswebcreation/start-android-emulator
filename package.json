@@ -8,6 +8,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "build:watch": "tsc --watch",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "test": "node --experimental-test-module-mocks --test \"test/**/*.test.ts\"",
     "prepublishOnly": "npm run build",

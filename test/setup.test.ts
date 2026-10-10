@@ -81,23 +81,28 @@ test("a bare machine needs every step, with the emulator named like Android Stud
 
 test("a machine that is complete needs nothing", () => {
   const steps = planAndroid(complete, defaultTarget(v37));
-  assert.deepEqual(ids(steps), ["env"]);
+  assert.deepEqual(ids(steps), ["java", "tools", "packages", "avds", "env"]);
+  assert.ok(steps.every((s) => s.done));
   assert.equal(blocking(steps).length, 0);
-  assert.ok(steps[0]!.done);
 });
 
-test("with an emulator already there, Java and the SDK are not asked for, only the environment is offered", () => {
+test("with an emulator already there, Java and the SDK are nice to have, they do not stop it from starting", () => {
   const state: Inspection = { ...complete, java: null, toolsReady: false, installedPackages: null, env: { vars: ["ANDROID_HOME", "JAVA_HOME"], pathMissing: true } };
   const steps = planAndroid(state, defaultTarget(v37));
-  assert.deepEqual(ids(steps), ["env"]);
-  assert.equal(steps[0]!.required, false);
-  assert.equal(blocking(steps).length, 0, "an emulator can be started without it");
-  assert.equal(steps[0]!.done, false);
+  const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+
+  assert.equal(blocking(steps).length, 0);
+  assert.deepEqual(ids(steps.filter((s) => !s.done)), ["java", "tools", "env"], "but they are still listed, for --setup and --check");
+  assert.equal(byId.packages!.done, true, "what we cannot ask about is not asked for");
+  assert.equal(byId.java!.required, false);
+  assert.equal(byId.env!.required, false);
 });
 
-test("JAVA_HOME is not asked for when there is no Java and none is needed", async () => {
+test("the environment step does not set JAVA_HOME when there is no Java", async () => {
   const state: Inspection = { ...complete, java: null, env: { vars: ["JAVA_HOME"], pathMissing: false } };
-  assert.equal(planAndroid(state, defaultTarget(v37))[0]!.done, true);
+  const env = planAndroid(state, defaultTarget(v37)).find((s) => s.id === "env")!;
+  assert.equal(await env.apply(), true);
+  assert.deepEqual(persistEnv.mock.calls[0]!.arguments[0], { vars: {}, paths: [] });
 });
 
 test("an emulator program that is missing is a blocking step, even when emulators exist", () => {
@@ -112,14 +117,15 @@ test("the workshop needs its two emulators by name, and the environment is requi
   const steps = planAndroid({ ...complete, avds: ["Pixel_9_API_37_0", "Workshop_1_Pixel_10_API_37_0"] }, target);
   const avds = steps.find((s) => s.id === "avds")!;
   assert.equal(avds.done, false);
+  assert.equal(avds.required, true);
   assert.equal(avds.title, "2 emulators");
   assert.match(avds.description, /Workshop_2_Pixel_10_API_37_0/);
   assert.doesNotMatch(avds.description, /Workshop_1/);
 
   assert.equal(planAndroid(bare, target).find((s) => s.id === "env")!.required, true);
   const both = planAndroid({ ...complete, avds: target.avds.map((a) => a.name) }, target);
-  assert.deepEqual(ids(both), ["env"], "with both emulators there, only the environment is left");
-  assert.equal(both[0]!.required, true);
+  assert.equal(both.find((s) => s.id === "avds")!.done, true);
+  assert.equal(both.find((s) => s.id === "env")!.required, true);
 });
 
 test("packages that are already installed are not asked again", () => {

@@ -22,13 +22,17 @@ after(() => rmSync(root, { recursive: true, force: true }));
 const options = { name: "Pixel_9_API_37_0", wipeData: false, coldBoot: false, dns: "8.8.8.8" as string | false };
 const noSleep = { sleep: async () => {}, intervalMs: 1000, timeoutMs: 5000 };
 
-/** What adb says: the given emulators are running, with their AVD name and whether they booted. */
-function adbSays(running: { serial: string; avd: string; booted: boolean }[]) {
+/**
+ * What adb says: the given emulators are running, with their AVD name and whether they booted.
+ * `console: false` is an emulator whose console prints nothing (no auth token), like the real one on the author's Mac.
+ */
+function adbSays(running: { serial: string; avd: string; booted: boolean; property?: boolean; console?: boolean }[]) {
   runFile.mock.mockImplementation((_file, args = []) => {
     if (args[0] === "devices") return result(`* daemon started successfully\nList of devices attached\n${running.map((r) => `${r.serial}\tdevice`).join("\n")}\n`);
     const device = running.find((r) => r.serial === args[1]);
-    if (args.includes("emu")) return result(`${device?.avd}\r\nOK`);
-    if (args.includes("getprop")) return result(device?.booted ? "1\n" : "\n");
+    if (args.includes("ro.boot.qemu.avd_name")) return result(device?.property === false ? "" : `${device?.avd}\n`);
+    if (args.includes("emu")) return result(device?.console === false ? "" : `${device?.avd}\r\nOK`);
+    if (args.includes("sys.boot_completed")) return result(device?.booted ? "1\n" : "\n");
     return result();
   });
 }
@@ -57,6 +61,21 @@ test("findRunning matches the emulator by the AVD it runs, not by its port", () 
   ]);
   assert.deepEqual(emulator.findRunning("adb", "Pixel_9_API_37_0"), { serial: "emulator-5556", booted: false });
   assert.equal(emulator.findRunning("adb", "Not_Running"), null);
+});
+
+test("findRunning reads the name from the system property, so a silent emulator console does not matter", () => {
+  adbSays([{ serial: "emulator-5554", avd: "Pixel_9_API_37_0", booted: true, console: false }]);
+  assert.deepEqual(emulator.findRunning("adb", "Pixel_9_API_37_0"), { serial: "emulator-5554", booted: true });
+});
+
+test("findRunning falls back to the console while the system property is not there yet", () => {
+  adbSays([{ serial: "emulator-5554", avd: "Pixel_9_API_37_0", booted: false, property: false }]);
+  assert.deepEqual(emulator.findRunning("adb", "Pixel_9_API_37_0"), { serial: "emulator-5554", booted: false });
+});
+
+test("findRunning does not match an emulator whose name it cannot find", () => {
+  adbSays([{ serial: "emulator-5554", avd: "Pixel_9_API_37_0", booted: true, property: false, console: false }]);
+  assert.equal(emulator.findRunning("adb", "Pixel_9_API_37_0"), null);
 });
 
 test("findRunning ignores real devices and the adb start-up noise", () => {
@@ -109,8 +128,8 @@ test("waitForBoot returns when the emulator of the AVD has booted, and keeps ask
   let asked = 0;
   runFile.mock.mockImplementation((_file, args = []) => {
     if (args[0] === "devices") return result("List of devices attached\nemulator-5554\tdevice\n");
-    if (args.includes("emu")) return result("Pixel_9_API_37_0\r\nOK");
-    if (args.includes("getprop")) return result(++asked >= 3 ? "1" : "");
+    if (args.includes("ro.boot.qemu.avd_name")) return result("Pixel_9_API_37_0");
+    if (args.includes("sys.boot_completed")) return result(++asked >= 3 ? "1" : "");
     return result();
   });
   assert.deepEqual(await emulator.waitForBoot("adb", "Pixel_9_API_37_0", launched, noSleep), { serial: "emulator-5554", booted: true });

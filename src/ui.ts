@@ -34,3 +34,22 @@ export async function ask(message: string, defaultValue = true): Promise<boolean
   if (settings.yes) return defaultValue;
   return confirm({ message, default: defaultValue });
 }
+
+const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+/** One line with a spinner and the seconds that passed. Without a terminal it prints the text once. */
+export function startSpinner(text: string, stream: NodeJS.WriteStream = process.stdout): () => void {
+  if (!stream.isTTY) {
+    say(`     ${DIM}${text}${RESET}`);
+    return () => {};
+  }
+  const started = Date.now();
+  let frame = 0;
+  const draw = () => stream.write(`\r\x1b[2K  ${CYAN}${FRAMES[frame++ % FRAMES.length]}${RESET}  ${DIM}${text} ${Math.round((Date.now() - started) / 1000)}s${RESET}`);
+  draw();
+  const timer = setInterval(draw, 100);
+  return () => {
+    clearInterval(timer);
+    stream.write("\r\x1b[2K");
+  };
+}

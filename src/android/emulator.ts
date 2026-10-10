@@ -30,13 +30,23 @@ export interface RunningEmulator {
   booted: boolean;
 }
 
+/**
+ * The name of the AVD an emulator runs. The system property is the reliable way: the emulator console
+ * (`adb emu avd name`) needs an auth token and prints nothing when that is not in order. The console is the fallback
+ * for the first moments of the boot, when the property is not there yet.
+ */
+function avdNameOf(adb: string, serial: string): string {
+  const fromProperty = runFile(adb, ["-s", serial, "shell", "getprop", "ro.boot.qemu.avd_name"]).output.trim();
+  if (fromProperty) return fromProperty;
+  // The console prints the name on the first line, followed by OK
+  return runFile(adb, ["-s", serial, "emu", "avd", "name"]).output.split(/\r?\n/)[0]?.trim() ?? "";
+}
+
 /** The emulator that runs this AVD, found through adb. Null when it is not running. */
 export function findRunning(adb: string, avd: string): RunningEmulator | null {
   const devices = runFile(adb, ["devices"]).output;
   for (const [, serial = ""] of devices.matchAll(/^(emulator-\d+)\s+\S+/gm)) {
-    // "emu avd name" prints the name on the first line, followed by OK
-    const name = runFile(adb, ["-s", serial, "emu", "avd", "name"]).output.split(/\r?\n/)[0]?.trim();
-    if (name !== avd) continue;
+    if (avdNameOf(adb, serial) !== avd) continue;
     const booted = runFile(adb, ["-s", serial, "shell", "getprop", "sys.boot_completed"]).output.trim() === "1";
     return { serial, booted };
   }

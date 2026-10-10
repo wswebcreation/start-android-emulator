@@ -27,10 +27,8 @@ export interface PlanResult {
 /** The steps that are missing and that stop an emulator from starting. */
 export const blocking = (steps: Step[]) => steps.filter((step) => !step.done && step.required !== false);
 
-/** Explain what we are going to do, ask once, then do it. */
-export async function runPlan(title: string, steps: Step[]): Promise<PlanResult> {
-  const missing = steps.filter((step) => !step.done);
-
+/** Show what is done and, with its description, what is missing. */
+export function showPlan(title: string, steps: Step[]): void {
   console.log(`\n${title}\n`);
   for (const step of steps) {
     if (step.done) {
@@ -40,8 +38,17 @@ export async function runPlan(title: string, steps: Step[]): Promise<PlanResult>
       info(step.description);
     }
   }
+}
 
-  if (missing.length === 0) return { ok: true, applied: [], declined: false };
+/** Explain what we are going to do, ask once, then do it. */
+export async function runPlan(title: string, steps: Step[]): Promise<PlanResult> {
+  const missing = steps.filter((step) => !step.done);
+  showPlan(title, steps);
+
+  if (missing.length === 0) {
+    console.log("\nEverything is already set up.");
+    return { ok: true, applied: [], declined: false };
+  }
 
   const chosen = await choose(missing);
   if (chosen.length === 0) {

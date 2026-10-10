@@ -46,7 +46,8 @@ interface Context {
 
 /**
  * Describe every step: what it is, whether it is already done, and how to do it. Nothing is changed here.
- * When an emulator can already be started, only the environment variables are left to offer.
+ * What is `required` stops an emulator from starting. When an emulator can already be started, Java, the command-line
+ * tools and the environment are only nice to have: they are for Appium and for setting up more.
  */
 export function planAndroid(state: Inspection, target: SetupTarget): Step[] {
   const ctx: Context = { sdk: state.sdk, java: state.java, toolsReady: state.toolsReady };
@@ -58,26 +59,15 @@ export function planAndroid(state: Inspection, target: SetupTarget): Step[] {
   const needSdkWork = avdsToCreate.length > 0 || !state.emulatorReady;
 
   // Without an emulator to create we only need the emulator itself and adb
-  const packages = needSdkWork ? (avdsToCreate.length > 0 ? requiredPackages(target.version) : ["platform-tools", "emulator"]) : [];
+  const packages = avdsToCreate.length > 0 ? requiredPackages(target.version) : ["platform-tools", "emulator"];
   const missingPackages = packages.filter((p) => !state.installedPackages?.has(p));
-
-  const envVars = state.env.vars.filter((v) => v !== "JAVA_HOME" || state.java !== null || needSdkWork);
-  const env: Step = {
-    id: "env",
-    title: "Environment variables",
-    description: "ANDROID_HOME, JAVA_HOME and PATH, so Appium, adb and other tools can find everything. Saved for new terminals.",
-    required: target.requireEnv,
-    done: envVars.length === 0 && !state.env.pathMissing,
-    detail: "ANDROID_HOME, JAVA_HOME and PATH are set",
-    apply: () => envStep(ctx, envVars, state.env.pathMissing),
-  };
-  if (!needSdkWork) return [env];
 
   return [
     {
       id: "java",
       title: `Java ${MIN_JAVA}+`,
       description: `Needed by the Android tools and by Appium. If you have no Java, we download Java ${JDK_FEATURE_VERSION} (about 200 MB) and leave your system untouched.`,
+      required: needSdkWork,
       done: state.java !== null,
       detail: state.java && `Java ${state.java.major}, ${state.java.home}`,
       apply: () => installJavaStep(ctx),
@@ -86,6 +76,7 @@ export function planAndroid(state: Inspection, target: SetupTarget): Step[] {
       id: "tools",
       title: "Android command-line tools",
       description: "The tools that install the rest of the Android SDK and create emulators (about 170 MB).",
+      required: needSdkWork,
       done: state.toolsReady,
       detail: state.toolsReady ? state.sdk : null,
       apply: () => installToolsStep(ctx),
@@ -94,7 +85,9 @@ export function planAndroid(state: Inspection, target: SetupTarget): Step[] {
       id: "packages",
       title: "Android SDK packages",
       description: `${target.version.label}, the emulator, adb and a system image (about 3 GB).`,
-      done: missingPackages.length === 0,
+      required: needSdkWork,
+      // Packages we cannot ask for (no Java or tools) count as done when an emulator can already be started
+      done: missingPackages.length === 0 || (!needSdkWork && state.installedPackages === null),
       detail: "all installed",
       apply: () => installPackagesStep(ctx, missingPackages),
     },
@@ -102,11 +95,20 @@ export function planAndroid(state: Inspection, target: SetupTarget): Step[] {
       id: "avds",
       title: target.avds.length === 1 ? "An emulator" : `${target.avds.length} emulators`,
       description: `${target.version.label}. We create ${(avdsToCreate.length ? avdsToCreate : target.avds).map((avd) => avd.name).join(" and ")}.`,
+      required: needSdkWork,
       done: avdsToCreate.length === 0,
-      detail: target.avds.map((avd) => avd.name).join(", "),
+      detail: target.anyEmulatorWillDo ? `${state.avds.length} found` : target.avds.map((avd) => avd.name).join(", "),
       apply: () => createAvdsStep(ctx, target, avdsToCreate),
     },
-    env,
+    {
+      id: "env",
+      title: "Environment variables",
+      description: "ANDROID_HOME, JAVA_HOME and PATH, so Appium, adb and other tools can find everything. Saved for new terminals.",
+      required: target.requireEnv,
+      done: state.env.vars.length === 0 && !state.env.pathMissing,
+      detail: "ANDROID_HOME, JAVA_HOME and PATH are set",
+      apply: () => envStep(ctx, state.env.vars, state.env.pathMissing),
+    },
   ];
 }
 
