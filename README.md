@@ -85,6 +85,26 @@ await setupAndroid(namedTarget(version, ["Test_1_API_{api}", "Test_2_API_{api}"]
 
 The module is now written in TypeScript and needs Node.js 24. It no longer needs `ANDROID_HOME` to be set beforehand, because it finds the SDK itself.
 
+## Development
+
+```
+npm install
+npm run build:watch   # build on every change
+npm test              # or npm run test:watch
+npm run typecheck
+```
+
+## Releasing
+
+Releases are published to npm by GitHub Actions ([release.yml](.github/workflows/release.yml)) with npm trusted publishing, so no npm token is needed.
+
+1. Merge your changes into `master` and make sure the tests are green.
+2. Bump the version on `master` with `npm version patch` (or `minor` / `major`), then `git push --follow-tags`. This creates the `vX.Y.Z` tag. Skip this when the version in `package.json` is already the one you want to release.
+3. On GitHub, go to Releases, draft a new release for the `vX.Y.Z` tag (create the tag there if it does not exist), generate the release notes and publish it.
+4. The workflow checks that the tag matches the version in `package.json`, runs the tests and publishes to npm with provenance.
+
+One-time setup on npmjs.com: package settings, Trusted Publisher, GitHub Actions, repository `wswebcreation/start-android-emulator`, workflow `release.yml`.
+
 ## License
 
 MIT
