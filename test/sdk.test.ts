@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, afterEach, before, beforeEach, mock, test } from "node:test";
 
@@ -18,8 +18,9 @@ mock.module("../src/shell.ts", { namedExports: { IS_MAC, IS_WIN: process.platfor
 mock.module("../src/download.ts", { namedExports: { download, extractArchive } });
 
 const root = mkdtempSync(join(tmpdir(), "start-android-emulator-sdk-"));
-const realHome = process.env.HOME;
+const realHome = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE };
 process.env.HOME = join(root, "home");
+process.env.USERPROFILE = process.env.HOME; // Windows reads the home folder from here
 const sdk = await import("../src/android/sdk.ts");
 
 const touch = (file: string, content = "") => {
@@ -43,7 +44,7 @@ const fakeSdk = (name: string) => {
 const savedEnv = { ...process.env };
 before(() => mkdirSync(process.env.HOME!, { recursive: true }));
 after(() => {
-  process.env.HOME = realHome;
+  Object.assign(process.env, realHome);
   rmSync(root, { recursive: true, force: true });
 });
 beforeEach(() => {
@@ -57,7 +58,7 @@ afterEach(() => {
 });
 
 test("defaultSdkPath is the usual place for the operating system", skipOnWindows, () => {
-  const expected = IS_MAC ? join(process.env.HOME!, "Library", "Android", "sdk") : join(process.env.HOME!, "Android", "Sdk");
+  const expected = IS_MAC ? join(homedir(), "Library", "Android", "sdk") : join(homedir(), "Android", "Sdk");
   assert.equal(sdk.defaultSdkPath(), expected);
 });
 
@@ -75,8 +76,8 @@ test("detectSdkPath prefers ANDROID_HOME, then a SDK in a known place, else null
   assert.equal(sdk.detectSdkPath(), process.env.ANDROID_HOME);
 
   delete process.env.ANDROID_HOME;
-  process.env.ANDROID_SDK_ROOT = process.env.HOME;
-  assert.equal(sdk.detectSdkPath(), process.env.HOME);
+  process.env.ANDROID_SDK_ROOT = homedir();
+  assert.equal(sdk.detectSdkPath(), homedir());
 });
 
 const osName = IS_MAC ? "mac" : process.platform === "win32" ? "win" : "linux";

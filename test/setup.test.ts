@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { join } from "node:path";
 import { afterEach, beforeEach, mock, test } from "node:test";
 
 const realSdk = await import("../src/android/sdk.ts");
@@ -143,7 +144,7 @@ test("a bare machine is set up step by step, each step using what the one before
   assert.equal((createAvd.mock.calls[0]!.arguments[2] as { name: string }).name, "Pixel_9_API_37_0");
   assert.deepEqual(persistEnv.mock.calls[0]!.arguments[0], {
     vars: { ANDROID_HOME: "/sdk", JAVA_HOME: "/downloaded/jdk" },
-    paths: ["/sdk/platform-tools", "/sdk/emulator"],
+    paths: [join("/sdk", "platform-tools"), join("/sdk", "emulator")],
   });
   assert.equal(applyToProcess.mock.callCount(), 1);
 });

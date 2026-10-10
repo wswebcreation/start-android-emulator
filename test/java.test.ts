@@ -16,7 +16,7 @@ mock.module("../src/download.ts", { namedExports: { download, extractArchive } }
 const { MIN_JAVA, detectJava, installJdk, isValidJavaHome, javaMajor } = await import("../src/java.ts");
 
 let root: string;
-const saved = { HOME: process.env.HOME, JAVA_HOME: process.env.JAVA_HOME };
+const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE, JAVA_HOME: process.env.JAVA_HOME };
 const versions = new Map<string, string>();
 
 /** A fake JDK folder: bin/java exists, and the mocked `java -version` prints the given version. */
@@ -31,6 +31,7 @@ function fakeJdk(name: string, version: string): string {
 before(() => {
   root = mkdtempSync(join(tmpdir(), "start-android-emulator-java-"));
   process.env.HOME = root;
+  process.env.USERPROFILE = root; // Windows reads the home folder from here
 });
 beforeEach(() => {
   versions.clear();

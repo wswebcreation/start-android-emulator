@@ -84,10 +84,12 @@ async function fetchInto(url: string, part: string, label: string): Promise<void
  * Unpack a .zip or .tar.gz with what the system already has, so we do not need a dependency for it.
  * tar (bsdtar on macOS and Windows 10+) reads both. Where it cannot read a .zip (GNU tar on Linux, or another
  * tar first in the PATH on Windows) we fall back to unzip, or to PowerShell on Windows.
+ * The GNU tar that comes with Git for Windows takes "C:\\..." for a remote host, --force-local tells it not to.
  */
 export async function extractArchive(file: string, destDir: string): Promise<void> {
   await mkdir(destDir, { recursive: true });
-  const tar = runFile("tar", ["-xf", file, "-C", destDir]);
+  let tar = runFile("tar", ["-xf", file, "-C", destDir]);
+  if (tar.exitCode !== 0 && IS_WIN) tar = runFile("tar", ["--force-local", "-xf", file, "-C", destDir]);
   if (tar.exitCode === 0) return;
 
   if (file.endsWith(".zip")) {

@@ -7,11 +7,12 @@ import { applyToProcess, persistEnv, shellProfile } from "../src/env.ts";
 
 const skipOnWindows = { skip: process.platform === "win32" && "writes to a shell profile, Windows uses user variables" };
 let home: string;
-const saved = { HOME: process.env.HOME, SHELL: process.env.SHELL, PATH: process.env.PATH };
+const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE, SHELL: process.env.SHELL, PATH: process.env.PATH };
 
 before(() => {
   home = mkdtempSync(join(tmpdir(), "start-android-emulator-env-"));
   process.env.HOME = home;
+  process.env.USERPROFILE = home; // Windows reads the home folder from here
   process.env.SHELL = "/bin/zsh";
 });
 after(() => {
