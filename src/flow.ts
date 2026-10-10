@@ -18,6 +18,7 @@ export const realDeps = {
   planAndroid,
   runPlan,
   findRunning,
+  startSpinner,
   launchEmulator,
   waitForBoot,
   followLog,
@@ -193,14 +194,16 @@ async function start(opts: Options, state: Inspection, deps: Deps): Promise<numb
     }
 
     const stopLog = launched && verbose ? deps.followLog(launched.logFile, (text) => process.stdout.write(text)) : null;
-    const stopSpinner = verbose ? () => {} : startSpinner("Waiting for the emulator to boot...");
+    const stopSpinner = verbose ? () => {} : deps.startSpinner("Waiting for the emulator to boot...");
+    let booted;
     try {
-      const booted = await deps.waitForBoot(adb, name, launched ?? { logFile: "", exited: null });
-      ok(`${name} is ready ${dim(`(adb: ${booted.serial})`)}`);
+      booted = await deps.waitForBoot(adb, name, launched ?? { logFile: "", exited: null });
     } finally {
+      // The line of the spinner must be gone before anything else is printed
       stopSpinner();
       stopLog?.();
     }
+    ok(`${name} is ready ${dim(`(adb: ${booted.serial})`)}`);
     return EXIT.ok;
   } catch (e) {
     fail((e as Error).message);

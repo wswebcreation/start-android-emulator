@@ -41,6 +41,7 @@ function fakeDeps(overrides: Partial<Deps> = {}): Partial<Deps> {
     launchEmulator: spy("launchEmulator", () => ({ child: {} as never, logFile: "/tmp/x.log", exited: null })),
     waitForBoot: spy("waitForBoot", async () => ({ serial: "emulator-5554", booted: true })),
     followLog: spy("followLog", () => () => {}),
+    startSpinner: spy("startSpinner", () => () => {}),
     adbBinary: spy("adbBinary", () => "/sdk/platform-tools/adb"),
     readConfig: spy("readConfig", () => ({})),
     writeConfig: spy("writeConfig", () => {}),
@@ -338,4 +339,27 @@ test("--check does not fail on what is only nice to have", async () => {
   state = { ...ready, env: { vars: ["ANDROID_HOME"], pathMissing: true } };
   assert.equal(await main(["--check"], fakeDeps()), EXIT.ok);
   assert.match(text(), /Environment variables, missing/);
+});
+
+test("the spinner is gone before the result is printed, so the result gets a line of its own", async () => {
+  const startSpinner = () => () => output.push("<spinner stopped>");
+  await main(["Pixel_8"], fakeDeps({ startSpinner }));
+  const lines = text().split("\n");
+  assert.ok(lines.indexOf("<spinner stopped>") >= 0 && lines.indexOf("<spinner stopped>") < lines.findIndex((l) => /is ready/.test(l)));
+});
+
+test("the spinner is also stopped when the emulator does not boot", async () => {
+  const startSpinner = () => () => output.push("<spinner stopped>");
+  const waitForBoot = async () => {
+    throw new Error("boom");
+  };
+  await main(["Pixel_8"], fakeDeps({ startSpinner, waitForBoot }));
+  const lines = text().split("\n");
+  assert.ok(lines.indexOf("<spinner stopped>") < lines.findIndex((l) => /boom/.test(l)));
+});
+
+test("everything we print starts at the left edge, like the questions", async () => {
+  await main(["Pixel_8"], fakeDeps());
+  const lines = text().split("\n").filter((l) => l.trim());
+  assert.ok(lines.every((l) => /^\S/.test(l)), lines.filter((l) => /^\s/.test(l)).join(" | "));
 });

@@ -10,11 +10,13 @@ const DIM = "\x1b[2m";
 
 export const say = (msg = "") => console.log(msg);
 
-export const ok = (msg: string) => say(`  ${GREEN}✔${RESET}  ${msg}`);
-export const fail = (msg: string) => say(`  ${RED}✘${RESET}  ${msg}`);
-export const warn = (msg: string) => say(`  ${YELLOW}⚠${RESET}  ${msg}`);
-export const todo = (msg: string) => say(`  ${YELLOW}○${RESET}  ${msg}`);
-export const info = (msg: string) => say(`     ${DIM}${msg}${RESET}`);
+// Flush left, like the questions of Inquirer, so everything on the screen lines up: a symbol, a space, the text.
+// What belongs to a line (the details, the explanation) is indented under its text.
+export const ok = (msg: string) => say(`${GREEN}✔${RESET} ${msg}`);
+export const fail = (msg: string) => say(`${RED}✘${RESET} ${msg}`);
+export const warn = (msg: string) => say(`${YELLOW}⚠${RESET} ${msg}`);
+export const todo = (msg: string) => say(`${YELLOW}○${RESET} ${msg}`);
+export const info = (msg: string) => say(`  ${DIM}${msg}${RESET}`);
 export const header = (msg: string) => say(`\n${BOLD}${CYAN}${msg}${RESET}`);
 export const bold = (msg: string) => `${BOLD}${msg}${RESET}`;
 export const green = (msg: string) => `${GREEN}${msg}${RESET}`;
@@ -40,12 +42,12 @@ const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "
 /** One line with a spinner and the seconds that passed. Without a terminal it prints the text once. */
 export function startSpinner(text: string, stream: NodeJS.WriteStream = process.stdout): () => void {
   if (!stream.isTTY) {
-    say(`     ${DIM}${text}${RESET}`);
+    info(text);
     return () => {};
   }
   const started = Date.now();
   let frame = 0;
-  const draw = () => stream.write(`\r\x1b[2K  ${CYAN}${FRAMES[frame++ % FRAMES.length]}${RESET}  ${DIM}${text} ${Math.round((Date.now() - started) / 1000)}s${RESET}`);
+  const draw = () => stream.write(`\r\x1b[2K${CYAN}${FRAMES[frame++ % FRAMES.length]}${RESET} ${DIM}${text} ${Math.round((Date.now() - started) / 1000)}s${RESET}`);
   draw();
   const timer = setInterval(draw, 100);
   return () => {
