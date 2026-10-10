@@ -58,6 +58,12 @@ export function sdkTool(sdk: string, name: string): string | null {
   return existsSync(file) ? file : null;
 }
 
+/** The emulator program, or null when the emulator package is not installed. */
+export function emulatorBinary(sdk: string): string | null {
+  const file = join(sdk, "emulator", exe("emulator"));
+  return existsSync(file) ? file : null;
+}
+
 export function platformToolsDirs(sdk: string): string[] {
   return [join(sdk, "platform-tools"), join(sdk, "emulator")];
 }
@@ -107,7 +113,8 @@ export interface EnvGaps {
 /** What this terminal is missing: ANDROID_HOME, a usable JAVA_HOME (17+) and adb on the PATH. Shared by the setup and the check. */
 export function androidEnvGaps(): EnvGaps {
   const vars: EnvGaps["vars"] = [];
-  if (!process.env.ANDROID_HOME) vars.push("ANDROID_HOME");
+  const androidHome = process.env.ANDROID_HOME;
+  if (!androidHome || !existsSync(androidHome)) vars.push("ANDROID_HOME");
   const javaHome = process.env.JAVA_HOME;
   if (!isValidJavaHome(javaHome) || (javaMajor(javaHome) ?? 0) < MIN_JAVA) vars.push("JAVA_HOME");
   return { vars, pathMissing: !run("adb --version") };

@@ -180,7 +180,10 @@ test("androidEnvGaps lists what the terminal is missing", skipOnWindows, () => {
   run.mock.mockImplementation(() => null);
   assert.deepEqual(sdk.androidEnvGaps(), { vars: ["ANDROID_HOME", "JAVA_HOME"], pathMissing: true });
 
-  process.env.ANDROID_HOME = "/sdk";
+  process.env.ANDROID_HOME = "/does/not/exist";
+  assert.deepEqual(sdk.androidEnvGaps().vars, ["ANDROID_HOME", "JAVA_HOME"], "a folder that is not there does not count");
+
+  process.env.ANDROID_HOME = root;
   process.env.JAVA_HOME = fakeJdk(join(root, "gaps-old"), "1.8.0_1");
   assert.deepEqual(sdk.androidEnvGaps().vars, ["JAVA_HOME"], "Java 8 is too old");
 

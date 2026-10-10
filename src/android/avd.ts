@@ -3,7 +3,7 @@ import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { download, extractArchive } from "../download.ts";
 import { runFile, type RunResult } from "../shell.ts";
-import { sdkTool, toolEnv } from "./sdk.ts";
+import { emulatorBinary, sdkTool, toolEnv } from "./sdk.ts";
 import { abi, systemImage, type AndroidVersion } from "./versions.ts";
 
 export interface DeviceProfile {
@@ -52,6 +52,15 @@ export function listAvds(sdk: string, jdk: string): string[] | null {
   const { output, exitCode } = runFile(avdmanager, ["list", "avd", "-c"], { env: toolEnv(sdk, jdk) });
   if (exitCode !== 0) return null;
   // avdmanager prints a Java warning line on some setups, AVD names never contain spaces
+  return output.split("\n").map((l) => l.trim()).filter((l) => l && !/\s/.test(l));
+}
+
+/** The emulators the emulator program knows, without needing Java. Null when the emulator is not installed. */
+export function listEmulators(sdk: string): string[] | null {
+  const emulator = emulatorBinary(sdk);
+  if (!emulator) return null;
+  const { output, exitCode } = runFile(emulator, ["-list-avds"], { env: { ...process.env, ANDROID_HOME: sdk, ANDROID_SDK_ROOT: sdk } });
+  if (exitCode !== 0) return null;
   return output.split("\n").map((l) => l.trim()).filter((l) => l && !/\s/.test(l));
 }
 
