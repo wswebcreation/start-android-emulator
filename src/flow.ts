@@ -5,6 +5,7 @@ import { DEFAULT_DNS, findRunning, followLog, launchEmulator, waitForBoot } from
 import { type Inspection, inspect } from "./android/inspect.ts";
 import { adbBinary } from "./android/sdk.ts";
 import { defaultTarget, planAndroid, workshopTarget } from "./android/setup.ts";
+import { printAbout, printBanner } from "./banner.ts";
 import { type AndroidVersion, fetchVersions, resolveVersion } from "./android/versions.ts";
 import { readConfig, writeConfig } from "./config.ts";
 import { relaunchWithProxy } from "./network.ts";
@@ -13,6 +14,8 @@ import { bold, cyan, dim, fail, info, ok, settings, startSpinner, warn } from ".
 
 /** Everything the flow reaches out to, so a test can replace the parts it does not want to run for real. */
 export const realDeps = {
+  printBanner,
+  printAbout,
   inspect,
   fetchVersions,
   planAndroid,
@@ -47,8 +50,11 @@ export async function main(argv: string[], overrides: Partial<Deps> = {}): Promi
   const deps: Deps = { ...realDeps, ...overrides };
   try {
     const opts = parseOptions(argv);
-    if (opts.help) return print(HELP);
     if (opts.version) return print(packageVersion());
+    if (opts.help) {
+      deps.printBanner(packageVersion());
+      return print(HELP);
+    }
 
     const relaunched = deps.relaunchWithProxy();
     if (relaunched !== null) return relaunched;
@@ -75,7 +81,8 @@ const print = (text: string) => {
 };
 
 async function run(opts: Options, deps: Deps): Promise<number> {
-  console.log(cyan(`\nAndroid Emulator CLI Helper ${packageVersion()}\nBy: @wswebcreation\n`));
+  deps.printBanner(packageVersion());
+  deps.printAbout();
 
   let state = deps.inspect();
   const wantsPlan = opts.setup === true || opts.workshop || opts.dryRun;

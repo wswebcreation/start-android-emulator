@@ -1,4 +1,5 @@
 import { parseArgs } from "node:util";
+import { aboutText } from "./about.ts";
 
 export interface Options {
   /** The emulator to start, instead of picking one from a list */
@@ -28,10 +29,9 @@ export interface Options {
 /** A mistake in how the command was used. The message is meant for the user. */
 export class UsageError extends Error {}
 
-export const HELP = `Usage: start-android-emulator [emulator] [options]
+export const HELP = `${aboutText()}
 
-Starts an Android emulator. Without an emulator name you can pick one from a list.
-If Java, the Android SDK or an emulator is missing, it offers to set them up.
+Usage: start-android-emulator [emulator] [options]
 
 Start options
   --wipe-data        Delete all user data of the emulator before starting

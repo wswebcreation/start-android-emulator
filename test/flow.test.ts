@@ -67,13 +67,42 @@ afterEach(() => mock.restoreAll());
 
 // ─── the simple answers ─────────────────────────────────────────────────────
 
-test("--help shows the options and --version the version, without looking at the machine", async () => {
+test("--help shows the banner, what you can do with it and the options; --version only the version", async () => {
   assert.equal(await main(["--help"], fakeDeps()), EXIT.ok);
-  assert.equal(text(), HELP.trimEnd());
+  assert.match(text(), /^Android Emulator CLI Helper v?[\d.]*\n/);
+  assert.ok(text().endsWith(HELP.trimEnd()));
+  assert.match(HELP, /^Start an Android emulator from your terminal\.\nNo Java or Android SDK yet\? We set it up for you\./);
+  assert.match(HELP, /\n  start-android-emulator \[emulator\]\s+Pick an emulator, or start one by name\n/);
+  assert.match(HELP, /Start options\n[\s\S]*--wipe-data/);
   output = [];
   assert.equal(await main(["--version"], fakeDeps()), EXIT.ok);
-  assert.match(text(), /^\d+\.\d+\.\d+/);
+  assert.match(text(), /^\d+\.\d+\.\d+$/, "nothing but the version");
   assert.equal(calls.inspect, undefined);
+});
+
+test("the banner and what the tool can do are shown on every run", async () => {
+  await main(["Pixel_8"], fakeDeps({ printBanner: spy("printBanner", () => {}), printAbout: spy("printAbout", () => {}) }));
+  assert.equal(calls.printBanner!.length, 1);
+  assert.equal(calls.printAbout!.length, 1);
+  for (const args of [["--check"], []]) {
+    for (const key of ["printBanner", "printAbout"]) delete calls[key];
+    await main(args, fakeDeps({ printBanner: spy("printBanner", () => {}), printAbout: spy("printAbout", () => {}) }));
+    assert.equal(calls.printAbout!.length, 1, args.join(" ") || "no arguments");
+  }
+});
+
+test("--help shows the banner, and the intro through the help text, not twice", async () => {
+  await main(["--help"], fakeDeps({ printBanner: spy("printBanner", () => {}), printAbout: spy("printAbout", () => {}) }));
+  assert.equal(calls.printBanner!.length, 1);
+  assert.equal(calls.printAbout, undefined, "the help already has it");
+  assert.equal((text().match(/No Java or Android SDK yet\?/g) ?? []).length, 1);
+});
+
+test("nothing of the banner is shown for the version or for a mistake in the command", async () => {
+  await main(["--version"], fakeDeps({ printBanner: spy("printBanner", () => {}), printAbout: spy("printAbout", () => {}) }));
+  await main(["--nope"], fakeDeps({ printBanner: spy("printBanner", () => {}), printAbout: spy("printAbout", () => {}) }));
+  assert.equal(calls.printBanner, undefined);
+  assert.equal(calls.printAbout, undefined);
 });
 
 test("a mistake in the command exits with 2 and says what to do", async () => {
