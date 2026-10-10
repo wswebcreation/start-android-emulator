@@ -20,7 +20,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "test": "node --experimental-test-module-mocks --test \"test/**/*.test.ts\"",
     "prepublishOnly": "npm run build",
-    "release": "np",
     "test:watch": "node --experimental-test-module-mocks --test --watch \"test/**/*.test.ts\""
   },
   "repository": {
@@ -52,7 +51,6 @@
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
-    "np": "^12.1.1",
     "typescript": "^7.0.2"
   }
 }
