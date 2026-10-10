@@ -29,3 +29,5 @@ jobs:
       - run: npm run build
       - name: Unit tests
         run: npm test
+      - name: Dry run of the setup
+        run: node dist/cli.js --setup --yes --dry-run

@@ -20,8 +20,12 @@ export interface Options {
   dryRun: boolean;
   /** The Android version, like 37 or 37.0 */
   api?: string;
-  /** The two emulators of the Appium + WebdriverIO workshop */
-  workshop: boolean;
+  /** Emulators to create, by name. {api} in a name becomes the Android version, like 37_0 */
+  create: string[];
+  /** The hardware profile of avdmanager for the emulators to create, like pixel_9 */
+  device?: string;
+  /** The device frame for the emulators to create, like pixel_10 (default: the same as the device) */
+  skin?: string;
   help: boolean;
   version: boolean;
 }
@@ -45,7 +49,10 @@ Setup
   --setup            Show the setup plan, also when nothing is missing
   --no-setup         Never offer to install anything, only report what is missing
   --api <level>      Android version to create an emulator for, like 36 or 37.0 (default: the newest)
-  --workshop         Set up the two emulators of the Appium + WebdriverIO workshop
+  --create <name>    Create an emulator with this name, repeat it for more. {api} becomes the version,
+                     like --create "Pixel_API_{api}" for Pixel_API_37_0
+  --device <profile> Hardware profile for the emulators to create (default: pixel_9)
+  --skin <skin>      Device frame for the emulators to create (default: the same as the device)
   --dry-run          Show what the setup would do, without changing anything
 
 Other
@@ -56,6 +63,7 @@ Other
 `;
 
 const IP = /^[0-9a-f.:]+$/i;
+const NAME = /^[\w.{}-]+$/;
 
 export function parseOptions(argv: string[]): Options {
   // parseArgs can negate a boolean (--no-wait) but not a string option, so --no-dns is taken out first
@@ -79,7 +87,9 @@ export function parseOptions(argv: string[]): Options {
         yes: { type: "boolean", short: "y" },
         "dry-run": { type: "boolean" },
         api: { type: "string" },
-        workshop: { type: "boolean" },
+        create: { type: "string", multiple: true },
+        device: { type: "string" },
+        skin: { type: "string" },
         help: { type: "boolean", short: "h" },
         version: { type: "boolean", short: "v" },
       },
@@ -92,7 +102,12 @@ export function parseOptions(argv: string[]): Options {
   if (positionals.length > 1) throw new UsageError(`Only one emulator can be started at a time, but you gave ${positionals.length}: ${positionals.join(", ")}`);
   if (values.dns !== undefined && noDns) throw new UsageError("Use either --dns <ip> or --no-dns, not both.");
   if (values.dns !== undefined && !IP.test(values.dns)) throw new UsageError(`"${values.dns}" is not an IP address, use for example --dns 8.8.8.8`);
-  if (positionals[0] && values.workshop) throw new UsageError("--workshop sets up emulators, it does not start one. Start them afterwards with their name.");
+  const create = values.create ?? [];
+  for (const name of create) {
+    if (!NAME.test(name)) throw new UsageError(`"${name}" is not a valid emulator name, use letters, numbers, _ . - and {api}`);
+  }
+  if (positionals[0] && create.length > 0) throw new UsageError("--create sets up emulators, it does not start one. Start them afterwards with their name.");
+  if ((values.device || values.skin) && create.length === 0) throw new UsageError("--device and --skin are for the emulators you create, add --create <name>.");
 
   return {
     emulator: positionals[0],
@@ -106,7 +121,9 @@ export function parseOptions(argv: string[]): Options {
     yes: values.yes ?? false,
     dryRun: values["dry-run"] ?? false,
     api: values.api,
-    workshop: values.workshop ?? false,
+    create,
+    device: values.device,
+    skin: values.skin,
     help: values.help ?? false,
     version: values.version ?? false,
   };

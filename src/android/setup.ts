@@ -2,7 +2,7 @@ import { MIN_JAVA, JDK_FEATURE_VERSION, installJdk, javaMajor, type JavaInstall 
 import { dry, runPlan, type PlanResult, type Step } from "../plan.ts";
 import { applyToProcess, persistEnv } from "../env.ts";
 import { fail, info, ok, settings, warn } from "../ui.ts";
-import { DEFAULT_DEVICE, WORKSHOP_DEVICE, avdName, createAvd, hasSkin, installSkin, workshopAvdNames, type DeviceProfile } from "./avd.ts";
+import { DEFAULT_DEVICE, avdName, createAvd, expandName, hasSkin, installSkin, type DeviceProfile } from "./avd.ts";
 import { type Inspection, inspect } from "./inspect.ts";
 import { acceptLicenses, installCmdlineTools, installPackages, platformToolsDirs } from "./sdk.ts";
 import { requiredPackages, type AndroidVersion } from "./versions.ts";
@@ -29,10 +29,10 @@ export const defaultTarget = (version: AndroidVersion, name = avdName(version)):
   requireEnv: false,
 });
 
-/** The two Pixel 10 emulators of the Appium + WebdriverIO workshop. */
-export const workshopTarget = (version: AndroidVersion): SetupTarget => ({
+/** Emulators with these names (see expandName). The environment is required too, they are meant for Appium. */
+export const namedTarget = (version: AndroidVersion, names: string[], device: DeviceProfile = DEFAULT_DEVICE): SetupTarget => ({
   version,
-  avds: workshopAvdNames(version).map((name) => ({ name, device: WORKSHOP_DEVICE })),
+  avds: names.map((name) => ({ name: expandName(name, version), device })),
   anyEmulatorWillDo: false,
   requireEnv: true,
 });

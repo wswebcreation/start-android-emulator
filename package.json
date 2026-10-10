@@ -1,18 +1,27 @@
 {
   "name": "start-android-emulator",
-  "version": "3.0.2",
-  "description": "A simple library to start an Android emulator on your local machine",
+  "version": "4.0.0",
+  "description": "Start an Android emulator from your terminal, and set up Java and the Android SDK when they are missing",
   "bin": {
     "start-android-emulator": "./dist/cli.js"
   },
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "test": "node --experimental-test-module-mocks --test \"test/**/*.test.ts\"",
     "prepublishOnly": "npm run build",
-    "release": "np"
+    "release": "np",
+    "test:watch": "node --experimental-test-module-mocks --test --watch \"test/**/*.test.ts\""
   },
   "repository": {
     "type": "git",
@@ -21,7 +30,10 @@
   "keywords": [
     "Android",
     "cli",
-    "emulator"
+    "emulator",
+    "avd",
+    "android-sdk",
+    "appium"
   ],
   "author": "wswebcreation",
   "license": "MIT",

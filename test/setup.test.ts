@@ -21,7 +21,7 @@ mock.module("../src/java.ts", { namedExports: { ...realJava, installJdk, javaMaj
 mock.module("../src/android/sdk.ts", { namedExports: { ...realSdk, installCmdlineTools, acceptLicenses, installPackages } });
 mock.module("../src/android/avd.ts", { namedExports: { ...realAvd, hasSkin, installSkin, createAvd } });
 mock.module("../src/env.ts", { namedExports: { persistEnv, applyToProcess } });
-const { defaultTarget, planAndroid, workshopTarget } = await import("../src/android/setup.ts");
+const { defaultTarget, namedTarget, planAndroid } = await import("../src/android/setup.ts");
 const { blocking } = await import("../src/plan.ts");
 const { settings } = await import("../src/ui.ts");
 const { requiredPackages } = await import("../src/android/versions.ts");
@@ -112,7 +112,10 @@ test("an emulator program that is missing is a blocking step, even when emulator
   assert.match(steps.find((s) => s.id === "packages")!.description, /Android 17/);
 });
 
-test("the workshop needs its two emulators by name, and the environment is required", () => {
+const workshopTarget = (version: typeof v37) =>
+  namedTarget(version, ["Workshop_1_Pixel_10_API_{api}", "Workshop_2_Pixel_10_API_{api}"], { profile: "pixel_9", skin: "pixel_10" });
+
+test("named emulators are all needed by name, and the environment is required", () => {
   const target = workshopTarget(v37);
   const steps = planAndroid({ ...complete, avds: ["Pixel_9_API_37_0", "Workshop_1_Pixel_10_API_37_0"] }, target);
   const avds = steps.find((s) => s.id === "avds")!;
@@ -214,7 +217,7 @@ test("a skin that cannot be downloaded is only a warning, a failed emulator is a
   assert.match(output.join("\n"), /Creating Pixel_9_API_37_0 failed[\s\S]*boom/);
 });
 
-test("the workshop creates both emulators with the Pixel 10 skin, downloading it once", async () => {
+test("named emulators are all created with the given skin, downloading it once", async () => {
   const state: Inspection = { ...bare, java, toolsReady: true };
   const avds = planAndroid(state, workshopTarget(v37)).find((s) => s.id === "avds")!;
   assert.equal(await avds.apply(), true);

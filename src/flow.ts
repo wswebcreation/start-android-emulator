@@ -4,7 +4,8 @@ import { HELP, UsageError, hasStartOptions, parseOptions, type Options } from ".
 import { DEFAULT_DNS, findRunning, followLog, launchEmulator, waitForBoot } from "./android/emulator.ts";
 import { type Inspection, inspect } from "./android/inspect.ts";
 import { adbBinary } from "./android/sdk.ts";
-import { defaultTarget, planAndroid, workshopTarget } from "./android/setup.ts";
+import { DEFAULT_DEVICE, type DeviceProfile } from "./android/avd.ts";
+import { defaultTarget, namedTarget, planAndroid } from "./android/setup.ts";
 import { printAbout, printBanner } from "./banner.ts";
 import { type AndroidVersion, fetchVersions, resolveVersion } from "./android/versions.ts";
 import { readConfig, writeConfig } from "./config.ts";
@@ -85,12 +86,12 @@ async function run(opts: Options, deps: Deps): Promise<number> {
   deps.printAbout();
 
   let state = deps.inspect();
-  const wantsPlan = opts.setup === true || opts.workshop || opts.dryRun;
+  const wantsPlan = opts.setup === true || opts.create.length > 0 || opts.dryRun;
   const canStart = state.emulatorReady && state.avds.length > 0;
 
   if (wantsPlan || opts.check || !canStart) {
     const version = await chooseVersion(opts, state, deps);
-    const target = opts.workshop ? workshopTarget(version) : defaultTarget(version);
+    const target = opts.create.length > 0 ? namedTarget(version, opts.create, deviceFor(opts)) : defaultTarget(version);
     const steps = deps.planAndroid(state, target);
 
     if (opts.check) return check(state, steps);
@@ -108,6 +109,11 @@ async function run(opts: Options, deps: Deps): Promise<number> {
   return start(opts, state, deps);
 }
 
+const deviceFor = ({ device, skin }: Options): DeviceProfile => ({
+  profile: device ?? DEFAULT_DEVICE.profile,
+  skin: skin ?? device ?? DEFAULT_DEVICE.skin,
+});
+
 /** The Android version for the emulator we might create: --api, the newest, or a pick from the list. */
 async function chooseVersion(opts: Options, state: Inspection, deps: Deps): Promise<AndroidVersion> {
   const { versions, source } = await deps.fetchVersions();
@@ -116,7 +122,7 @@ async function chooseVersion(opts: Options, state: Inspection, deps: Deps): Prom
   if (opts.api) return pickVersion(opts.api, versions);
 
   const newest = versions[0]!;
-  const willCreate = state.avds.length === 0 && !opts.workshop && !opts.check && !opts.dryRun;
+  const willCreate = state.avds.length === 0 && opts.create.length === 0 && !opts.check && !opts.dryRun;
   if (!willCreate || !deps.interactive || opts.yes) return newest;
 
   const api = await deps.select({
@@ -137,7 +143,10 @@ const pickVersion = (requested: string, versions: AndroidVersion[]): AndroidVers
 
 function check(state: Inspection, steps: Step[]): number {
   showPlan("This is what we found:", steps);
-  if (state.avds.length > 0) info(`Emulators: ${state.avds.join(", ")}`);
+  if (state.avds.length > 0) {
+    console.log("\nEmulators:");
+    for (const avd of state.avds) info(`- ${avd}`);
+  }
   const missing = blocking(steps);
   console.log(missing.length > 0 ? "\nSomething is missing. Run start-android-emulator --setup to fix it." : "\nEverything is set up.");
   return missing.length > 0 ? EXIT.failed : EXIT.ok;

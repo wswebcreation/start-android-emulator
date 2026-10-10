@@ -36,14 +36,12 @@ const fakeSdk = (name: string) => {
 const v37 = { api: "37.0", label: "Android 17 (API 37.0)" };
 const v36 = { api: "36", label: "Android 16 (API 36)" };
 
-test("emulators are named like Android Studio does, and the workshop ones numbered", () => {
+test("emulators are named like Android Studio does, and a given name gets the version filled in", () => {
   assert.equal(avd.avdName(v37), "Pixel_9_API_37_0");
   assert.equal(avd.avdName(v36), "Pixel_9_API_36");
-  assert.deepEqual(avd.workshopAvdNames(v37), ["Workshop_1_Pixel_10_API_37_0", "Workshop_2_Pixel_10_API_37_0"]);
-});
-
-test("the workshop emulators are a Pixel 9 profile with the Pixel 10 skin", () => {
-  assert.deepEqual(avd.WORKSHOP_DEVICE, { profile: "pixel_9", skin: "pixel_10" });
+  assert.equal(avd.expandName("Test_{api}_a", v37), "Test_37_0_a");
+  assert.equal(avd.expandName("Test_{api}_{api}", v36), "Test_36_36");
+  assert.equal(avd.expandName("Fixed", v36), "Fixed");
 });
 
 test("listAvds returns emulator names and ignores warning lines", skipOnWindows, () => {
@@ -89,7 +87,7 @@ test("createAvd creates the emulator from the system image of the version, with 
 
 test("createAvd leaves the skin out when it is not installed, and uses the device of a preset", skipOnWindows, () => {
   const sdk = fakeSdk("create-sdk-no-skin");
-  avd.createAvd(sdk, "/jdk", { name: "Workshop_1", version: v36, device: avd.WORKSHOP_DEVICE });
+  avd.createAvd(sdk, "/jdk", { name: "Workshop_1", version: v36, device: { profile: "pixel_9", skin: "pixel_10" } });
   const [, args] = runFile.mock.calls[0]!.arguments as RunFileArgs;
   assert.ok(!args.includes("--skin"));
   assert.equal(args[args.indexOf("-d") + 1], "pixel_9");

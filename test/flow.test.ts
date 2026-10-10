@@ -326,7 +326,7 @@ test("when Google's list cannot be read the user is told the built-in list is us
   assert.match(text(), /Could not read the list of Android versions.*built-in/);
 });
 
-// ─── --setup, --workshop, --dry-run and --check ─────────────────────────────
+// ─── --setup, --create, --dry-run and --check ─────────────────────────────
 
 test("--setup shows the plan even when nothing is missing, and then stops with a hint", async () => {
   assert.equal(await main(["--setup"], fakeDeps({ runPlan: spy("runPlan", async () => ({ ok: true, applied: ["env"], declined: false })) })), EXIT.ok);
@@ -336,8 +336,8 @@ test("--setup shows the plan even when nothing is missing, and then stops with a
   assert.match(text(), /Start an emulator with: npx start-android-emulator.*new terminal/);
 });
 
-test("--workshop plans the two workshop emulators, with the newest version unless --api is given", async () => {
-  await main(["--workshop", "--yes"], fakeDeps());
+test("--create plans the named emulators, with the newest version unless --api is given", async () => {
+  await main(["--create", "Workshop_1_Pixel_10_API_{api}", "--create", "Workshop_2_Pixel_10_API_{api}", "--skin", "pixel_10", "--yes"], fakeDeps());
   const [, steps] = calls.runPlan![0] as [string, { id: string; description: string; required?: boolean }[]];
   assert.match(steps.find((s) => s.id === "avds")!.description, /Workshop_1_Pixel_10_API_37_0 and Workshop_2_Pixel_10_API_37_0/);
   assert.equal(steps.find((s) => s.id === "env")!.required, true);
@@ -360,7 +360,7 @@ test("--check lists what is there and what is missing, and exits with 1 when som
   state = ready;
   output = [];
   assert.equal(await main(["--check"], fakeDeps()), EXIT.ok);
-  assert.match(text(), /Java 17\+.*Java 21[\s\S]*Emulators: Pixel_8, Pixel_9_API_37_0, Pixel_9_Pro[\s\S]*Everything is set up/, "every step is shown, also those that are done");
+  assert.match(text(), /Java 17\+.*Java 21[\s\S]*Emulators:\n  - Pixel_8\n  - Pixel_9_API_37_0\n  - Pixel_9_Pro[\s\S]*Everything is set up/, "every step is shown, also those that are done");
   assert.equal(calls.launchEmulator, undefined);
 });
 

@@ -15,20 +15,14 @@ export interface DeviceProfile {
 
 export const DEFAULT_DEVICE: DeviceProfile = { profile: "pixel_9", skin: "pixel_9" };
 
-/**
- * The workshop needs two emulators, both Pixel 10. avdmanager has no pixel_10 hardware profile yet, but the screen is
- * identical to the Pixel 9 (1080x2424), so we use the pixel_9 profile with the Pixel 10 skin.
- */
-export const WORKSHOP_DEVICE: DeviceProfile = { profile: "pixel_9", skin: "pixel_10" };
-
 const apiSuffix = (version: AndroidVersion) => `API_${version.api.replace(".", "_")}`;
 
 /** Pixel_9_API_37_0, the same name Android Studio would give it. */
 export const avdName = (version: AndroidVersion, device: DeviceProfile = DEFAULT_DEVICE) =>
   `${device.skin.charAt(0).toUpperCase()}${device.skin.slice(1)}_${apiSuffix(version)}`;
 
-export const workshopAvdNames = (version: AndroidVersion) =>
-  [1, 2].map((n) => `Workshop_${n}_${avdName(version, WORKSHOP_DEVICE)}`);
+/** Fill in the version in a name given by the user: Pixel_API_{api} becomes Pixel_API_37_0. */
+export const expandName = (template: string, version: AndroidVersion) => template.replaceAll("{api}", version.api.replace(".", "_"));
 
 // The emulator only shows a device frame when a skin is available in <sdk>/skins. Android Studio copies these
 // there, without Studio they are missing, so fetch the same files from the Android source tree.

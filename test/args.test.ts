@@ -15,7 +15,9 @@ test("without arguments everything is off, and we wait for the boot", () => {
     yes: false,
     dryRun: false,
     api: undefined,
-    workshop: false,
+    create: [],
+    device: undefined,
+    skin: undefined,
     help: false,
     version: false,
   });
@@ -41,8 +43,8 @@ test("setup is forced with --setup, forbidden with --no-setup, and left to the p
 });
 
 test("the short flags and the setup options", () => {
-  const o = parseOptions(["-y", "--api", "36", "--workshop", "--dry-run", "--check"]);
-  assert.deepEqual([o.yes, o.api, o.workshop, o.dryRun, o.check], [true, "36", true, true, true]);
+  const o = parseOptions(["-y", "--api", "36", "--dry-run", "--check"]);
+  assert.deepEqual([o.yes, o.api, o.dryRun, o.check], [true, "36", true, true]);
   assert.equal(parseOptions(["-h"]).help, true);
   assert.equal(parseOptions(["-v"]).version, true);
 });
@@ -53,7 +55,14 @@ test("mistakes in the command are explained", () => {
   assert.throws(() => parseOptions(["a", "b"]), /Only one emulator.*a, b/);
   assert.throws(() => parseOptions(["--dns", "1.1.1.1", "--no-dns"]), /either --dns <ip> or --no-dns/);
   assert.throws(() => parseOptions(["--dns", "google"]), /"google" is not an IP address/);
-  assert.throws(() => parseOptions(["Pixel", "--workshop"]), /--workshop sets up emulators/);
+  assert.throws(() => parseOptions(["Pixel", "--create", "A"]), /--create sets up emulators/);
+  assert.throws(() => parseOptions(["--create", "a b"]), /"a b" is not a valid emulator name/);
+  assert.throws(() => parseOptions(["--skin", "pixel_10"]), /add --create/);
+});
+
+test("emulators to create can be repeated, with a device and a skin", () => {
+  const o = parseOptions(["--create", "A_{api}", "--create", "B_{api}", "--device", "pixel_9", "--skin", "pixel_10"]);
+  assert.deepEqual([o.create, o.device, o.skin], [["A_{api}", "B_{api}"], "pixel_9", "pixel_10"]);
 });
 
 test("any option about how to start means we do not ask about it", () => {
