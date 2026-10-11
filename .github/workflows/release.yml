@@ -19,10 +19,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
           cache: npm
-      # Trusted publishing needs npm 11.5.1 or newer, the one that comes with Node can be older
-      - run: npm install -g npm@latest
+      # No registry-url on setup-node: it writes a dummy auth token that npm would use instead of trusted publishing
       - run: npm --version
       - run: npm ci
       - name: The tag matches the version
