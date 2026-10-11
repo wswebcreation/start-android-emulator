@@ -52,7 +52,7 @@ jobs:
           npm version ${{ inputs.releaseType }} -m "Release %s"
           echo "VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
       - name: Publish to npm
-        run: npm publish --provenance --access public --tag ${{ inputs.distTag }} --loglevel verbose
+        run: npm publish --provenance --access public --tag ${{ inputs.distTag }}
       - name: Push the version commit and the tag
         run: git push origin main --follow-tags
       - name: Create the GitHub release
