@@ -79,6 +79,18 @@ export function toolEnv(sdk: string, jdk: string): NodeJS.ProcessEnv {
   return { ...process.env, JAVA_HOME: jdk, ANDROID_HOME: sdk };
 }
 
+const PACKAGE_ID = /^[a-z][\w.-]*(;[\w.-]+)*$/i;
+
+/**
+ * The columns of one line of `sdkmanager --list`. Up to cmdline-tools 20 they are separated by "|" and the id is
+ * "platforms;android-37.0". From version 23 on there is no "|", the columns are separated by spaces and the id is
+ * "platforms/android-37.0". We always return the id with ";", the way `--install` and requiredPackages use it.
+ */
+export function packageColumns(line: string): string[] {
+  const [id = "", ...rest] = (line.includes("|") ? line.split("|") : line.trim().split(/\s{2,}/)).map((part) => part.trim());
+  return [id.replaceAll("/", ";"), ...rest];
+}
+
 /** The package ids that are installed (like "emulator"), or null when sdkmanager is missing or fails. */
 export async function listInstalledPackages(sdk: string, jdk: string): Promise<Set<string> | null> {
   const sdkmanager = sdkTool(sdk, "sdkmanager");
@@ -87,8 +99,8 @@ export async function listInstalledPackages(sdk: string, jdk: string): Promise<S
   if (exitCode !== 0) return null;
   const installed = new Set<string>();
   for (const line of output.split("\n")) {
-    const id = line.split("|")[0]?.trim();
-    if (id && /^[a-z][\w.-]*(;[\w.-]+)*$/i.test(id) && id !== "Path") installed.add(id);
+    const [id = ""] = packageColumns(line);
+    if (PACKAGE_ID.test(id) && id !== "Path") installed.add(id);
   }
   return installed;
 }
@@ -137,13 +149,13 @@ export function parseUpdates(output: string): PackageUpdate[] {
   const updates: PackageUpdate[] = [];
   let inSection = false;
   for (const line of output.replace(/\r/g, "\n").split("\n")) {
-    if (/^\s*Available Updates:/.test(line)) {
+    if (/^\s*Available Updates:/i.test(line)) {
       inSection = true;
       continue;
     }
     if (!inSection) continue;
-    const [id = "", installed = "", available = ""] = line.split("|").map((part) => part.trim());
-    if (/^[a-z][\w.-]*(;[\w.-]+)*$/i.test(id) && id !== "ID" && available) updates.push({ id, installed, available });
+    const [id = "", installed = "", available = ""] = packageColumns(line);
+    if (PACKAGE_ID.test(id) && id !== "ID" && available) updates.push({ id, installed, available });
   }
   return updates;
 }

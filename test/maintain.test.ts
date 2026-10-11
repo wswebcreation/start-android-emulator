@@ -46,6 +46,20 @@ test("updates are read from the Available Updates part of sdkmanager --list", ()
   assert.deepEqual(parseUpdates("Installed packages:\n  emulator | 1"), []);
 });
 
+test("updates are also read when the columns are separated by spaces and the ids have /", () => {
+  const output = [
+    "Installed packages:", "  emulator                 37.2.12      Android Emulator",
+    "Available Updates:",
+    "  platform-tools                                   37.0.0    37.0.1",
+    "  system-images/android-35/google_apis_playstore/arm64-v8a   8         9",
+    "",
+  ].join("\n");
+  assert.deepEqual(parseUpdates(output), [
+    { id: "platform-tools", installed: "37.0.0", available: "37.0.1" },
+    { id: IMG35, installed: "8", available: "9" },
+  ]);
+});
+
 test("newer system images no emulator uses are not worth the download", () => {
   const updates = [
     { id: "platform-tools", installed: "1", available: "2" },
