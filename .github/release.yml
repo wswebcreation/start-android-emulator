@@ -1,0 +1,22 @@
+# How GitHub groups the generated release notes, by the "PR: ..." label of each merged pull request
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+    authors:
+      - dependabot
+  categories:
+    - title: 💥 Breaking Change
+      labels: ["PR: Breaking Change :boom:"]
+    - title: 🚀 New Feature
+      labels: ["PR: New Feature :rocket:"]
+    - title: 🐛 Bug Fix
+      labels: ["PR: Bug Fix :bug:"]
+    - title: 💅 Polish
+      labels: ["PR: Polish :nail_care:"]
+    - title: 📝 Documentation
+      labels: ["PR: Docs :memo:"]
+    - title: 🏠 Internal
+      labels: ["PR: Internal :house:"]
+    - title: Other Changes
+      labels: ["*"]

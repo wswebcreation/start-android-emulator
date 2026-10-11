@@ -96,14 +96,15 @@ npm run typecheck
 
 ## Releasing
 
-Releases are published to npm by GitHub Actions ([release.yml](.github/workflows/release.yml)) with npm trusted publishing, so no npm token is needed.
+Releases are made by GitHub Actions ([release.yml](.github/workflows/release.yml)) and published to npm with trusted publishing, so no npm token is needed.
 
-1. Merge your changes into `master` and make sure the tests are green.
-2. Bump the version on `master` with `npm version patch` (or `minor` / `major`), then `git push --follow-tags`. This creates the `vX.Y.Z` tag. Skip this when the version in `package.json` is already the one you want to release.
-3. On GitHub, go to Releases, draft a new release for the `vX.Y.Z` tag (create the tag there if it does not exist), generate the release notes and publish it.
-4. The workflow checks that the tag matches the version in `package.json`, runs the tests and publishes to npm with provenance.
+1. Merge your changes into `main` and make sure the tests are green.
+2. On GitHub, go to Actions, Release, Run workflow. Choose `main`, the release type (`patch`, `minor` or `major`) and the npm tag (`latest`, or `next` for a test version).
+3. The workflow runs the tests, bumps the version, publishes to npm with provenance, pushes the version commit and the `vX.Y.Z` tag, and creates the GitHub release with generated release notes. Only the owner of the repository can run it.
 
-One-time setup on npmjs.com: package settings, Trusted Publisher, GitHub Actions, repository `wswebcreation/start-android-emulator`, workflow `release.yml`.
+Give every pull request one of the `PR: …` labels (Breaking Change, New Feature, Bug Fix, Polish, Docs, Internal) to get it under the right heading in the release notes, see [.github/release.yml](.github/release.yml). `skip-changelog` leaves a pull request out.
+
+One-time setup on npmjs.com: package settings, Trusted Publisher, GitHub Actions, repository `wswebcreation/start-android-emulator`, workflow `release.yml`, with "Allow npm publish" ticked.
 
 ## License
 

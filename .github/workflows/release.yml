@@ -1,34 +1,62 @@
 name: Release
 
-# Publishes to npm when a GitHub release is published. The tag of the release (v4.0.1) must match the version in package.json.
+# Run it by hand from the Actions tab (on main): it bumps the version, publishes to npm, pushes the version commit and
+# the tag, and creates the GitHub release with generated release notes.
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      releaseType:
+        description: Release type
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+      distTag:
+        description: npm tag, use "next" for a test version
+        required: true
+        default: latest
 
 permissions:
-  contents: read
-  # Needed for npm trusted publishing (no npm token is stored in GitHub) and for the provenance statement
+  # Push the version commit and the tag, and create the release
+  contents: write
+  # npm trusted publishing (no npm token is stored in GitHub) and the provenance statement
   id-token: write
 
 jobs:
-  publish:
+  release:
+    # Only from main, and only by the owner of the repository
+    if: github.ref == 'refs/heads/main' && github.actor == github.repository_owner
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # No registry-url on setup-node: it writes a dummy auth token that npm would use instead of trusted publishing
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-      # No registry-url on setup-node: it writes a dummy auth token that npm would use instead of trusted publishing
-      - run: npm --version
       - run: npm ci
-      - name: The tag matches the version
-        run: |
-          if [ "v$(node -p "require('./package.json').version")" != "${{ github.event.release.tag_name }}" ]; then
-            echo "Release tag ${{ github.event.release.tag_name }} does not match the version in package.json"
-            exit 1
-          fi
       - run: npm run typecheck
       - run: npm test
-      - run: npm publish --provenance --access public
+      - name: Bump the version
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          npm version ${{ inputs.releaseType }} -m "Release %s"
+          echo "VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
+      - name: Publish to npm
+        run: npm publish --provenance --access public --tag ${{ inputs.distTag }}
+      - name: Push the version commit and the tag
+        run: git push origin main --follow-tags
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PRERELEASE=""
+          if [ "${{ inputs.distTag }}" != "latest" ]; then PRERELEASE="--prerelease"; fi
+          gh release create "v$VERSION" --title "v$VERSION" --generate-notes $PRERELEASE
