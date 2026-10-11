@@ -28,8 +28,8 @@ beforeEach(() => {
   listAvds.mock.resetCalls();
 });
 
-test("a complete machine is reported as it is", () => {
-  assert.deepEqual(inspect(), {
+test("a complete machine is reported as it is", async () => {
+  assert.deepEqual(await inspect(), {
     sdk: "/sdk",
     sdkFound: true,
     java,
@@ -41,12 +41,12 @@ test("a complete machine is reported as it is", () => {
   });
 });
 
-test("without an SDK the default location is where we would put it", () => {
+test("without an SDK the default location is where we would put it", async () => {
   detectSdkPath.mock.mockImplementation(() => null);
   sdkTool.mock.mockImplementation(() => null);
   emulatorBinary.mock.mockImplementation(() => null);
   listEmulators.mock.mockImplementation(() => null);
-  const state = inspect();
+  const state = await inspect();
   assert.equal(state.sdk, "/default/sdk");
   assert.equal(state.sdkFound, false);
   assert.equal(state.toolsReady, false);
@@ -54,16 +54,16 @@ test("without an SDK the default location is where we would put it", () => {
   assert.deepEqual(state.avds, []);
 });
 
-test("without Java we cannot ask sdkmanager, but the emulator still lists its emulators", () => {
+test("without Java we cannot ask sdkmanager, but the emulator still lists its emulators", async () => {
   detectJava.mock.mockImplementation(() => null);
-  const state = inspect();
+  const state = await inspect();
   assert.equal(state.installedPackages, null);
   assert.deepEqual(state.avds, ["Pixel_9_API_37_0"]);
 });
 
-test("when the emulator program is missing avdmanager is asked for the emulators", () => {
+test("when the emulator program is missing avdmanager is asked for the emulators", async () => {
   listEmulators.mock.mockImplementation(() => null);
-  assert.deepEqual(inspect().avds, ["FromAvdmanager"]);
+  assert.deepEqual((await inspect()).avds, ["FromAvdmanager"]);
   detectJava.mock.mockImplementation(() => null);
-  assert.deepEqual(inspect().avds, [], "and without Java there is nobody to ask");
+  assert.deepEqual((await inspect()).avds, [], "and without Java there is nobody to ask");
 });

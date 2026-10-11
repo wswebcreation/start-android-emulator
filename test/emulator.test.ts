@@ -12,7 +12,7 @@ const runFile = mock.fn((_file: string, _args?: string[]) => result());
 const spawn = mock.fn((..._args: unknown[]) => child);
 const unref = mock.fn();
 let child: EventEmitter & { unref: () => void };
-mock.module("../src/shell.ts", { namedExports: { IS_MAC: process.platform === "darwin", IS_WIN: process.platform === "win32", run: () => null, runFile } });
+mock.module("../src/shell.ts", { namedExports: { IS_MAC: process.platform === "darwin", IS_WIN: process.platform === "win32", run: () => null, runFile, runFileAsync: (file: string, args?: string[], options?: object) => Promise.resolve((runFile as (...a: unknown[]) => unknown)(file, args, options)) } });
 mock.module("node:child_process", { namedExports: { spawn, spawnSync: () => ({ status: 0 }) } });
 const emulator = await import("../src/android/emulator.ts");
 

@@ -1,4 +1,4 @@
-import { execSync, spawnSync } from "node:child_process";
+import { execSync, spawn, spawnSync } from "node:child_process";
 import { platform } from "node:os";
 
 export const IS_MAC = platform() === "darwin";
@@ -42,4 +42,21 @@ export function runFile(file: string, args: string[] = [], { env = process.env, 
   });
   const output = ((result.stdout || "") + (result.stderr || "")).trim();
   return { output, exitCode: result.status ?? 1 };
+}
+
+/**
+ * Like runFile, but the program runs next to us instead of in front of us, so a spinner keeps turning while we wait.
+ * Always resolves: a program that cannot start is a failed run with the reason as its output.
+ */
+export function runFileAsync(file: string, args: string[] = [], { env = process.env, input, timeout }: Omit<RunFileOptions, "inherit"> = {}): Promise<RunResult> {
+  return new Promise((resolve) => {
+    let output = "";
+    const child = spawn(IS_WIN ? `"${file}"` : file, args, { env, shell: IS_WIN, timeout, stdio: ["pipe", "pipe", "pipe"] });
+    child.stdout.on("data", (chunk) => (output += chunk));
+    child.stderr.on("data", (chunk) => (output += chunk));
+    child.on("error", (error) => resolve({ output: error.message, exitCode: 1 }));
+    child.on("close", (code) => resolve({ output: output.trim(), exitCode: code ?? 1 }));
+    child.stdin.on("error", () => {});
+    child.stdin.end(input);
+  });
 }

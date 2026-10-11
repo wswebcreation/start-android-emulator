@@ -10,7 +10,7 @@ const run = mock.fn((_cmd: string): string | null => null);
 const runFile = mock.fn((_file: string, _args?: string[]) => ({ output: 'openjdk version "21.0.2" 2025', exitCode: 0 }));
 const download = mock.fn(async (..._args: unknown[]) => {});
 const extractArchive = mock.fn(async (_archive: string, _dir: string) => {});
-mock.module("../src/shell.ts", { namedExports: { IS_MAC: false, IS_WIN: true, run, runFile } });
+mock.module("../src/shell.ts", { namedExports: { IS_MAC: false, IS_WIN: true, run, runFile, runFileAsync: (file: string, args?: string[], options?: object) => Promise.resolve((runFile as (...a: unknown[]) => unknown)(file, args, options)) } });
 mock.module("../src/download.ts", { namedExports: { download, extractArchive } });
 
 const root = mkdtempSync(join(tmpdir(), "start-android-emulator-win-"));

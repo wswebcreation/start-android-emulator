@@ -99,3 +99,10 @@ test("the plan stops at the first step that fails", async () => {
   assert.deepEqual(result, { ok: false, applied: [], declined: false });
   assert.match(output.join("\n"), /Stopped, because this step failed/);
 });
+
+test("a single missing step with an action is asked for by what it does", async () => {
+  await runPlan("Plan", [step("a", { action: "create Pixel_9_API_37_0" })]);
+  const options = select.mock.calls[0]!.arguments[0] as { message: string; choices: { name: string }[] };
+  assert.equal(options.message, "Create Pixel_9_API_37_0 now?");
+  assert.equal(options.choices[0]!.name, "Yes, go ahead");
+});

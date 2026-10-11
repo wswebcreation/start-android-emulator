@@ -11,7 +11,7 @@ type RunFileArgs = [string, string[], { input?: string }];
 const runFile = mock.fn((_file: string, _args?: string[], _options?: object) => result());
 const download = mock.fn(async (..._args: unknown[]) => {});
 const extractArchive = mock.fn(async (_archive: string, _dir: string) => {});
-mock.module("../src/shell.ts", { namedExports: { IS_MAC: process.platform === "darwin", IS_WIN: process.platform === "win32", run: () => null, runFile } });
+mock.module("../src/shell.ts", { namedExports: { IS_MAC: process.platform === "darwin", IS_WIN: process.platform === "win32", run: () => null, runFile, runFileAsync: (file: string, args?: string[], options?: object) => Promise.resolve(runFile(file, args, options)) } });
 mock.module("../src/download.ts", { namedExports: { download, extractArchive } });
 const avd = await import("../src/android/avd.ts");
 const { abi } = await import("../src/android/versions.ts");
@@ -44,15 +44,15 @@ test("emulators are named like Android Studio does, and a given name gets the ve
   assert.equal(avd.expandName("Fixed", v36), "Fixed");
 });
 
-test("listAvds returns emulator names and ignores warning lines", skipOnWindows, () => {
+test("listAvds returns emulator names and ignores warning lines", skipOnWindows, async () => {
   runFile.mock.mockImplementation(() => result("WARNING: A Java warning with spaces\nPixel_9_API_37_0\n\nPixel_8_API_35\n"));
-  assert.deepEqual(avd.listAvds(fakeSdk("avd-sdk"), "/jdk"), ["Pixel_9_API_37_0", "Pixel_8_API_35"]);
+  assert.deepEqual(await avd.listAvds(fakeSdk("avd-sdk"), "/jdk"), ["Pixel_9_API_37_0", "Pixel_8_API_35"]);
 });
 
-test("listAvds is null without avdmanager or when it fails", skipOnWindows, () => {
-  assert.equal(avd.listAvds(join(root, "no-tools"), "/jdk"), null);
+test("listAvds is null without avdmanager or when it fails", skipOnWindows, async () => {
+  assert.equal(await avd.listAvds(join(root, "no-tools"), "/jdk"), null);
   runFile.mock.mockImplementation(() => result("", 1));
-  assert.equal(avd.listAvds(fakeSdk("avd-failing-sdk"), "/jdk"), null);
+  assert.equal(await avd.listAvds(fakeSdk("avd-failing-sdk"), "/jdk"), null);
 });
 
 test("the device skin is only there when its layout file is", skipOnWindows, async () => {
@@ -98,4 +98,12 @@ test("createAvd fails clearly without avdmanager", skipOnWindows, () => {
   assert.equal(result.exitCode, 1);
   assert.match(result.output, /avdmanager was not found/);
   assert.equal(runFile.mock.callCount(), 0);
+});
+
+test("deleteAvd deletes the emulator by name, and fails clearly without avdmanager", skipOnWindows, async () => {
+  const sdk = fakeSdk("delete-sdk");
+  assert.equal((await avd.deleteAvd(sdk, "/jdk", "Workshop_1")).exitCode, 0);
+  const [, args] = runFile.mock.calls[0]!.arguments as RunFileArgs;
+  assert.deepEqual(args, ["delete", "avd", "-n", "Workshop_1"]);
+  assert.equal((await avd.deleteAvd(join(sdk, "nothing"), "/jdk", "Workshop_1")).exitCode, 1);
 });
