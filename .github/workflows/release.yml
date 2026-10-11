@@ -42,6 +42,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      # Build before npm looks at package.json: it removes a bin that does not exist yet from what it publishes
+      - run: npm run build
       - run: npm test
       - name: Bump the version
         run: |
@@ -50,7 +52,7 @@ jobs:
           npm version ${{ inputs.releaseType }} -m "Release %s"
           echo "VERSION=$(node -p "require('./package.json').version")" >> "$GITHUB_ENV"
       - name: Publish to npm
-        run: npm publish --provenance --access public --tag ${{ inputs.distTag }}
+        run: npm publish --provenance --access public --tag ${{ inputs.distTag }} --loglevel verbose
       - name: Push the version commit and the tag
         run: git push origin main --follow-tags
       - name: Create the GitHub release
