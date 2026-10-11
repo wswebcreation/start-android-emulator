@@ -135,6 +135,39 @@ test("listInstalledPackages returns the package ids sdkmanager prints", skipOnWi
   assert.deepEqual(runFile.mock.calls[0]!.arguments[1], [`--sdk_root=${dir}`, "--list_installed"]);
 });
 
+// What cmdline-tools 23 prints: no "|", columns separated by spaces, "/" in the ids, and a deprecation warning on top
+const SDKMANAGER_LIST_23 = `WARNING: The SDK Manager CLI tool (sdkmanager) is deprecated. Android CLI will be used instead.
+The 'android' binary can also be found in the cmdline-tools directory, and 'android sdk' is the replacement for 'sdkmanager'.
+
+Installed packages:
+  build-tools/36.0.0                                               36.0.0                 Android SDK Build-Tools 36
+  cmdline-tools/latest                                             23.0.0                 Android SDK Command-line Tools (latest)
+  emulator                                                         37.2.12                Android Emulator
+  platform-tools                                                   37.0.1                 Android SDK Platform-Tools
+  platforms/android-37.0                                           2.0.0                  Android SDK Platform 37.0
+  system-images/android-37.0/google_apis/arm64-v8a                 6.0.0                  Google APIs ARM 64 v8a System Image
+`;
+
+test("listInstalledPackages reads the output of cmdline-tools 23 and gives the ids with ;", skipOnWindows, async () => {
+  const dir = fakeSdk("list-sdk-23");
+  runFile.mock.mockImplementation(() => result(SDKMANAGER_LIST_23));
+  assert.deepEqual([...(await sdk.listInstalledPackages(dir, "/jdk"))!].sort(), [
+    "build-tools;36.0.0",
+    "cmdline-tools;latest",
+    "emulator",
+    "platform-tools",
+    "platforms;android-37.0",
+    "system-images;android-37.0;google_apis;arm64-v8a",
+  ]);
+});
+
+test("packageColumns splits on | or on spaces, and gives the id with ;", () => {
+  assert.deepEqual(sdk.packageColumns("  emulator | 36.4.9 | Android Emulator | emulator"), ["emulator", "36.4.9", "Android Emulator", "emulator"]);
+  assert.deepEqual(sdk.packageColumns("  platforms;android-37.0 | 1 | Android SDK Platform 37.0"), ["platforms;android-37.0", "1", "Android SDK Platform 37.0"]);
+  assert.deepEqual(sdk.packageColumns("  platforms/android-37.0    2.0.0    Android SDK Platform 37.0"), ["platforms;android-37.0", "2.0.0", "Android SDK Platform 37.0"]);
+  assert.deepEqual(sdk.packageColumns(""), [""]);
+});
+
 test("listInstalledPackages is null without sdkmanager or when it fails", skipOnWindows, async () => {
   assert.equal(await sdk.listInstalledPackages(join(root, "no-tools"), "/jdk"), null);
   runFile.mock.mockImplementation(() => result("boom", 1));
