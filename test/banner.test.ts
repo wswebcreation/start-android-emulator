@@ -96,12 +96,16 @@ test("under the banner it says what the tool does, the commands to try, and wher
   assert.match(text, /  start-android-emulator \[emulator\]\s+Pick an emulator, or start one by name/);
   assert.match(text, /  start-android-emulator --check\s+See what is set up and what is missing/);
   assert.match(text, /  start-android-emulator --setup\s+Install what is missing/);
+  assert.match(text, /  start-android-emulator --create \[name\]\s+Create an emulator, see --help/);
+  assert.match(text, /  start-android-emulator --delete \[name\]\s+Delete an emulator/);
+  assert.match(text, /  start-android-emulator --update\s+Update the SDK packages in use/);
+  assert.match(text, /  start-android-emulator --prune\s+Remove SDK packages no emulator uses/);
   assert.match(text, /  start-android-emulator --help\s+All options\n$/);
 });
 
-test("it is short: the intro, three commands and the pointer", () => {
-  assert.ok(aboutLines("none").filter((line) => line.trim()).length <= 7);
-  assert.ok(aboutLines("none").every((line) => line.length <= 80));
+test("it is short: the intro, seven commands and the pointer", () => {
+  assert.ok(aboutLines("none").filter((line) => line.trim()).length <= 10);
+  assert.ok(aboutLines("none").every((line) => line.length <= 100));
 });
 
 test("the descriptions line up in one column", () => {

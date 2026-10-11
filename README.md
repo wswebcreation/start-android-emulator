@@ -17,8 +17,18 @@ Requires Node.js 24 or newer. Works on macOS, Linux and Windows.
 | `start-android-emulator Pixel_9_API_37_0` | Start an emulator by name |
 | `start-android-emulator --check` | See what is set up and what is missing, and which emulators exist |
 | `start-android-emulator --setup` | Install what is missing |
+| `start-android-emulator --create "Pixel_API_{api}"` | Create an emulator with your own name, see [below](#several-emulators-with-your-own-names) |
+| `start-android-emulator --delete Pixel_API_37_0` | Delete an emulator, see [below](#deleting-emulators) |
 
 It waits until the emulator has booted, remembers the one you used last, and leaves the emulator running when the command ends.
+
+### Pick the version, device and name from a list
+
+```
+start-android-emulator --create
+```
+
+Without a name you are asked which Android version, which device (Pixel 10, Pixel 9, Pixel 9 Pro, Pixel 8, Pixel 8 Pro, Pixel Tablet, Pixel Fold, or any other avdmanager hardware profile) and what the emulator is called: the suggested name, like `Pixel_9_API_37_0`, or your own. Then you can add another emulator, with the same Android version. What you already gave with `--api`, `--device` or `--skin` is not asked again. This needs a terminal.
 
 ### Several emulators with your own names
 
@@ -26,7 +36,34 @@ It waits until the emulator has booted, remembers the one you used last, and lea
 start-android-emulator --create "Test_1_API_{api}" --create "Test_2_API_{api}" --skin pixel_10 --yes
 ```
 
-Each `--create` makes one emulator, and `{api}` becomes the Android version (`Test_1_API_37_0`). Use `--api 36` for another version. Emulators that already exist are left alone. Because these are meant for Appium, `ANDROID_HOME`, `JAVA_HOME` and `PATH` are set as well.
+Each `--create` makes one emulator, and `{api}` becomes the Android version (`Test_1_API_37_0`). Use `--api 36` for another version, `--device` for another hardware profile (default `pixel_9`) and `--skin` for another device frame. Emulators that already exist are left alone. `--create` only sets up emulators, it does not start them: start one afterwards by its name. Add `--dry-run` to see the plan first. Because these are meant for Appium, `ANDROID_HOME`, `JAVA_HOME` and `PATH` are set as well.
+
+### Deleting emulators
+
+```
+start-android-emulator --delete
+```
+
+Without a name you get a list of your emulators and select the ones to delete (space to select, enter to continue). With names it goes straight to the question:
+
+```
+start-android-emulator --delete Test_1_API_37_0 --delete Test_2_API_37_0
+```
+
+Each `--delete` removes one emulator and its data. You are asked to confirm first, `--yes` skips the question and `--dry-run` only shows what would be deleted. An emulator that is running is not deleted, stop it first. `--delete` cannot be combined with `--create` or an emulator to start.
+
+### Keeping the SDK tidy and up to date
+
+```
+start-android-emulator --update
+start-android-emulator --prune
+```
+
+`--update` installs the newer versions of what you use: the command-line tools, platform-tools, the emulator and the system images that your emulators run on. An emulator uses the system image in the SDK, so after an update it starts on the newer image and keeps its data and settings. Newer versions of system images that no emulator uses are skipped, they would only be a big download.
+
+`--prune` lists the system images that no emulator uses, plus the platforms and sources of Android versions without an emulator, and removes the ones you select. Everything unused is selected, deselect what you want to keep. A platform is not needed to run an emulator, only to build apps for that Android version, and sources only to browse the Android code in an IDE. Build tools, the NDK and CMake are never touched. You are asked to confirm, `--yes` removes everything that is unused, and `--dry-run` shows what would go. Removed packages can be installed again by creating an emulator or running `--setup`.
+
+Both need Java and the command-line tools, and cannot be combined with `--create`, `--delete` or an emulator to start. `--update --prune` does both.
 
 ### When something is missing
 
@@ -54,8 +91,14 @@ Setup
   --setup            Show the setup plan, also when nothing is missing
   --no-setup         Never offer to install anything, only report what is missing
   --api <level>      Android version to create an emulator for, like 36 or 37.0 (default: the newest)
-  --create <name>    Create an emulator with this name, repeat it for more. {api} becomes the version,
-                     like --create "Pixel_API_{api}" for Pixel_API_37_0
+  --create [name]    Create an emulator with this name, repeat it for more. {api} becomes the version,
+                     like --create "Pixel_API_{api}" for Pixel_API_37_0.
+                     Without a name you pick the version, the device and the name from a list
+  --delete [name]    Delete the emulator with this name, repeat it for more.
+                     Without a name you pick the emulators to delete from a list
+  --update           Install the newer versions of the SDK packages in use, like the emulator and the system
+                     images of your emulators (the emulators themselves keep their data)
+  --prune            Remove the system images, platforms and sources no emulator uses, all selected
   --device <profile> Hardware profile for the emulators to create (default: pixel_9)
   --skin <skin>      Device frame for the emulators to create (default: the same as the device)
   --dry-run          Show what the setup would do, without changing anything
@@ -65,6 +108,24 @@ Other
   -y, --yes          Answer yes to every question (also needed to set up without a terminal)
   -h, --help         Show this help
   -v, --version      Show the version
+
+Examples
+  Create an emulator by picking the version, device and name from a list:
+    start-android-emulator --create
+  Create an emulator with the newest Android version, then start it:
+    start-android-emulator --create "Pixel_API_{api}"
+    start-android-emulator Pixel_API_37_0
+  Create two emulators for Android 36 with another device and frame, without questions:
+    start-android-emulator --create "Test_1_API_{api}" --create "Test_2_API_{api}" --api 36 --device pixel_9 --skin pixel_10 --yes
+  See what would happen without changing anything:
+    start-android-emulator --create "Pixel_API_{api}" --dry-run
+  Keep the SDK up to date, and remove what no emulator needs:
+    start-android-emulator --update
+    start-android-emulator --prune
+  Delete emulators by picking them from a list:
+    start-android-emulator --delete
+  Delete emulators (asks first, --yes skips the question):
+    start-android-emulator --delete Test_1_API_37_0 --delete Test_2_API_37_0
 ```
 
 Your last emulator and your DNS choice are saved in `~/.config/start-android-emulator/config.json` (`%APPDATA%` on Windows).

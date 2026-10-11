@@ -14,7 +14,7 @@ const run = mock.fn((_cmd: string): string | null => null);
 const runFile = mock.fn((_file: string, _args?: string[], _options?: object) => result());
 const download = mock.fn(async (..._args: unknown[]) => {});
 const extractArchive = mock.fn(async (_archive: string, _dir: string) => {});
-mock.module("../src/shell.ts", { namedExports: { IS_MAC, IS_WIN: process.platform === "win32", run, runFile } });
+mock.module("../src/shell.ts", { namedExports: { IS_MAC, IS_WIN: process.platform === "win32", run, runFile, runFileAsync: (file: string, args?: string[], options?: object) => Promise.resolve(runFile(file, args, options)) } });
 mock.module("../src/download.ts", { namedExports: { download, extractArchive } });
 
 const root = mkdtempSync(join(tmpdir(), "start-android-emulator-sdk-"));
@@ -128,17 +128,17 @@ const SDKMANAGER_LIST = `Installed packages:
   platforms;android-37.0 | 1     | Android SDK Platform 37.0    | platforms/android-37.0
 `;
 
-test("listInstalledPackages returns the package ids sdkmanager prints", skipOnWindows, () => {
+test("listInstalledPackages returns the package ids sdkmanager prints", skipOnWindows, async () => {
   const dir = fakeSdk("list-sdk");
   runFile.mock.mockImplementation(() => result(SDKMANAGER_LIST));
-  assert.deepEqual([...sdk.listInstalledPackages(dir, "/jdk")!].sort(), ["emulator", "platform-tools", "platforms;android-37.0"]);
+  assert.deepEqual([...(await sdk.listInstalledPackages(dir, "/jdk"))!].sort(), ["emulator", "platform-tools", "platforms;android-37.0"]);
   assert.deepEqual(runFile.mock.calls[0]!.arguments[1], [`--sdk_root=${dir}`, "--list_installed"]);
 });
 
-test("listInstalledPackages is null without sdkmanager or when it fails", skipOnWindows, () => {
-  assert.equal(sdk.listInstalledPackages(join(root, "no-tools"), "/jdk"), null);
+test("listInstalledPackages is null without sdkmanager or when it fails", skipOnWindows, async () => {
+  assert.equal(await sdk.listInstalledPackages(join(root, "no-tools"), "/jdk"), null);
   runFile.mock.mockImplementation(() => result("boom", 1));
-  assert.equal(sdk.listInstalledPackages(fakeSdk("failing-sdk"), "/jdk"), null);
+  assert.equal(await sdk.listInstalledPackages(fakeSdk("failing-sdk"), "/jdk"), null);
 });
 
 test("acceptLicenses answers yes to every question", skipOnWindows, () => {

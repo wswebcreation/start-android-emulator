@@ -16,6 +16,9 @@ test("without arguments everything is off, and we wait for the boot", () => {
     dryRun: false,
     api: undefined,
     create: [],
+    delete: [],
+    update: false,
+    prune: false,
     device: undefined,
     skin: undefined,
     help: false,
@@ -71,4 +74,32 @@ test("any option about how to start means we do not ask about it", () => {
     assert.equal(hasStartOptions(parseOptions(flag)), true, flag.join(" "));
   }
   assert.equal(hasStartOptions(parseOptions(["--no-wait", "--api", "36"])), false);
+});
+
+test("emulators to delete can be repeated, but not mixed with creating or starting", () => {
+  assert.deepEqual(parseOptions(["--delete", "A_1", "--delete", "B_1"]).delete, ["A_1", "B_1"]);
+  assert.throws(() => parseOptions(["--delete", "a b"]), /not a valid emulator name/);
+  assert.throws(() => parseOptions(["--delete", "A_{api}"]), /not a valid emulator name/);
+  assert.throws(() => parseOptions(["--delete", "A", "--create", "B"]), /cannot be combined/);
+  assert.throws(() => parseOptions(["Pixel", "--delete", "A"]), /cannot be combined/);
+});
+
+test("--create without a name asks for the details, and cannot be mixed with named ones", () => {
+  assert.deepEqual(parseOptions(["--create"]).create, [""]);
+  assert.deepEqual(parseOptions(["--create", "--api", "36"]).create, [""]);
+  assert.throws(() => parseOptions(["--create", "A", "--create"]), /on its own/);
+});
+
+test("--delete without a name picks from a list, and cannot be mixed with named ones", () => {
+  assert.deepEqual(parseOptions(["--delete"]).delete, [""]);
+  assert.deepEqual(parseOptions(["--delete", "--yes"]).delete, [""]);
+  assert.throws(() => parseOptions(["--delete", "A", "--delete"]), /on its own/);
+});
+
+test("--update and --prune maintain the SDK and cannot be mixed with creating, deleting or starting", () => {
+  const o = parseOptions(["--update", "--prune"]);
+  assert.deepEqual([o.update, o.prune], [true, true]);
+  assert.throws(() => parseOptions(["--update", "--create", "A"]), /cannot be combined/);
+  assert.throws(() => parseOptions(["--prune", "--delete", "A"]), /cannot be combined/);
+  assert.throws(() => parseOptions(["Pixel", "--update"]), /cannot be combined/);
 });

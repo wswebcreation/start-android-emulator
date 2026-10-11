@@ -19,7 +19,7 @@ export interface Inspection {
   env: EnvGaps;
 }
 
-export function inspect(): Inspection {
+export async function inspect(): Promise<Inspection> {
   const found = detectSdkPath();
   const sdk = found ?? defaultSdkPath();
   const java = detectJava();
@@ -31,9 +31,9 @@ export function inspect(): Inspection {
     sdkFound: found !== null,
     java,
     toolsReady,
-    installedPackages: canAsk ? listInstalledPackages(sdk, java.home) : null,
+    installedPackages: canAsk ? await listInstalledPackages(sdk, java.home) : null,
     emulatorReady: Boolean(emulatorBinary(sdk)),
-    avds: listEmulators(sdk) ?? (canAsk ? listAvds(sdk, java.home) : null) ?? [],
+    avds: (await listEmulators(sdk)) ?? (canAsk ? await listAvds(sdk, java.home) : null) ?? [],
     env: androidEnvGaps(),
   };
 }

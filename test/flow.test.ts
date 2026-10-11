@@ -34,7 +34,7 @@ const spy = <T>(name: string, impl: (...args: any[]) => T) =>
 /** Deps where nothing really happens: the machine is `state`, the user presses enter on every question. */
 function fakeDeps(overrides: Partial<Deps> = {}): Partial<Deps> {
   return {
-    inspect: spy("inspect", () => state),
+    inspect: spy("inspect", async () => state),
     fetchVersions: spy("fetchVersions", async () => ({ versions: [v37, v36, v29], source: "live" as const })),
     runPlan: spy("runPlan", async () => ({ ok: true, applied: [] as string[], declined: false })),
     findRunning: spy("findRunning", () => null),
@@ -391,4 +391,228 @@ test("everything we print starts at the left edge, like the questions", async ()
   await main(["Pixel_8"], fakeDeps());
   const lines = text().split("\n").filter((l) => l.trim());
   assert.ok(lines.every((l) => /^\S/.test(l)), lines.filter((l) => /^\s/.test(l)).join(" | "));
+});
+
+// ─── --delete ───────────────────────────────────────────────────────────────
+
+const deleted = () => (calls.deleteAvd ?? []).map((c) => c[2]);
+const deleteDeps = (overrides: Partial<Deps> = {}) =>
+  fakeDeps({
+    deleteAvd: spy("deleteAvd", async () => ({ output: "", exitCode: 0 })),
+    confirm: spy("confirm", async () => true),
+    ...overrides,
+  });
+
+test("--delete asks first and deletes the named emulators", async () => {
+  assert.equal(await main(["--delete", "Pixel_8", "--delete", "Pixel_9_Pro"], deleteDeps()), EXIT.ok);
+  assert.equal(calls.confirm!.length, 1);
+  assert.deepEqual(deleted(), ["Pixel_8", "Pixel_9_Pro"]);
+  assert.match(text(), /Deleted Pixel_8/);
+});
+
+test("--delete does nothing when the answer is no", async () => {
+  assert.equal(await main(["--delete", "Pixel_8"], deleteDeps({ confirm: spy("confirm", async () => false) })), EXIT.ok);
+  assert.deepEqual(deleted(), []);
+  assert.match(text(), /Nothing deleted/);
+});
+
+test("--delete --yes does not ask", async () => {
+  assert.equal(await main(["--delete", "Pixel_8", "--yes"], deleteDeps()), EXIT.ok);
+  assert.equal(calls.confirm, undefined);
+  assert.deepEqual(deleted(), ["Pixel_8"]);
+});
+
+test("--delete --dry-run only says what it would delete", async () => {
+  assert.equal(await main(["--delete", "Pixel_8", "--dry-run"], deleteDeps()), EXIT.ok);
+  assert.deepEqual(deleted(), []);
+  assert.match(text(), /would delete Pixel_8/);
+});
+
+test("--delete refuses an unknown emulator and a running one", async () => {
+  assert.equal(await main(["--delete", "Nope", "--yes"], deleteDeps()), EXIT.failed);
+  assert.match(text(), /no emulator called "Nope"/);
+  output = [];
+  const running = { serial: "emulator-5554", booted: true };
+  assert.equal(await main(["--delete", "Pixel_8", "--yes"], deleteDeps({ findRunning: spy("findRunning", () => running) })), EXIT.failed);
+  assert.match(text(), /Pixel_8 is running/);
+  assert.deepEqual(deleted(), []);
+});
+
+test("--delete reports a failure of avdmanager", async () => {
+  assert.equal(await main(["--delete", "Pixel_8", "--yes"], deleteDeps({ deleteAvd: spy("deleteAvd", async () => ({ output: "boom", exitCode: 1 })) })), EXIT.failed);
+  assert.match(text(), /Deleting Pixel_8 failed/);
+});
+
+// ─── --create without a name ────────────────────────────────────────────────
+
+/** Answers the questions in order: version, then device and name per emulator (and the typed text when asked). */
+const answering = (answers: string[], typed: string[] = [], another: boolean[] = [false]) => ({
+  select: spy("select", async () => answers.shift()!),
+  input: spy("input", async () => typed.shift()!),
+  confirm: spy("confirm", async () => another.shift() ?? false),
+});
+const plannedTarget = () => calls.planAndroid?.at(-1)?.[1] as { version: { api: string }; avds: { name: string; device: { profile: string; skin: string } }[] };
+
+test("--create without a name asks for version, device and name, and plans that emulator", async () => {
+  const deps = fakeDeps({ ...answering(["36", "0", "Pixel_10_API_36"]), planAndroid: spy("planAndroid", () => []) });
+  assert.equal(await main(["--create"], deps), EXIT.ok);
+  assert.equal(calls.select!.length, 3);
+  assert.equal(plannedTarget().version.api, "36");
+  assert.deepEqual(plannedTarget().avds, [{ name: "Pixel_10_API_36", device: { profile: "pixel_9", skin: "pixel_10" } }]);
+});
+
+test("--create without a name keeps asking for emulators while the answer is yes, with the version asked once", async () => {
+  const deps = fakeDeps({ ...answering(["36", "0", "Pixel_10_API_36", "2", "Pixel_9_Pro_API_36"], [], [true, false]), planAndroid: spy("planAndroid", () => []) });
+  assert.equal(await main(["--create"], deps), EXIT.ok);
+  assert.equal(calls.select!.length, 5);
+  assert.deepEqual(plannedTarget().avds.map((a) => [a.name, a.device.skin]), [["Pixel_10_API_36", "pixel_10"], ["Pixel_9_Pro_API_36", "pixel_9_pro"]]);
+});
+
+test("a name that is already taken in this run has to be typed", async () => {
+  const deps = fakeDeps({ ...answering(["36", "1", "Pixel_9_API_36", "1"], ["Pixel_9_Second"], [true, false]), planAndroid: spy("planAndroid", () => []) });
+  await main(["--create"], deps);
+  assert.deepEqual(plannedTarget().avds.map((a) => a.name), ["Pixel_9_API_36", "Pixel_9_Second"]);
+  assert.equal(calls.input!.length, 1);
+});
+
+test("--create without a name does not ask what was given, and takes a typed name or hardware profile", async () => {
+  const deps = fakeDeps({ ...answering(["__custom__"], ["My_Phone"]), planAndroid: spy("planAndroid", () => []) });
+  assert.equal(await main(["--create", "--api", "36", "--device", "pixel_7"], deps), EXIT.ok);
+  assert.equal(calls.select!.length, 1, "only the name is asked");
+  assert.deepEqual(plannedTarget().avds, [{ name: "My_Phone", device: { profile: "pixel_7", skin: "pixel_7" } }]);
+});
+
+test("--create without a name needs a terminal", async () => {
+  assert.equal(await main(["--create"], fakeDeps({ interactive: false })), EXIT.usage);
+  assert.match(text(), /no terminal to ask in/);
+});
+
+test("--delete without a name lets you pick the emulators from a list", async () => {
+  const deps = deleteDeps({ checkbox: spy("checkbox", async () => ["Pixel_8", "Pixel_9_Pro"]) });
+  assert.equal(await main(["--delete"], deps), EXIT.ok);
+  assert.deepEqual((calls.checkbox![0]![0] as { choices: { value: string }[] }).choices.map((c) => c.value), AVDS);
+  assert.deepEqual(deleted(), ["Pixel_8", "Pixel_9_Pro"]);
+});
+
+test("--delete without a name and nothing picked deletes nothing; without a terminal it is a usage error", async () => {
+  assert.equal(await main(["--delete"], deleteDeps()), EXIT.ok);
+  assert.deepEqual(deleted(), []);
+  assert.match(text(), /Nothing deleted/);
+  assert.equal(await main(["--delete"], deleteDeps({ interactive: false })), EXIT.usage);
+});
+
+// ─── --update and --prune ───────────────────────────────────────────────────
+
+const IMG37 = "system-images;android-37.0;google_apis;arm64-v8a";
+const IMG30 = "system-images;android-30;google_apis;arm64-v8a";
+const maintainDeps = (overrides: Partial<Deps> = {}) =>
+  fakeDeps({
+    avdImage: spy("avdImage", () => IMG37),
+    listUpdates: spy("listUpdates", async () => [
+      { id: "platform-tools", installed: "1", available: "2" },
+      { id: IMG37, installed: "6", available: "7" },
+      { id: IMG30, installed: "13", available: "16" },
+    ]),
+    listInstalledPackages: spy("listInstalledPackages", async () => new Set(["emulator", IMG37, IMG30, "platforms;android-30", "platforms;android-37.0"])),
+    acceptLicenses: spy("acceptLicenses", () => true),
+    installPackages: spy("installPackages", () => true),
+    uninstallPackage: spy("uninstallPackage", async () => ({ output: "", exitCode: 0 })),
+    confirm: spy("confirm", async () => true),
+    checkbox: spy("checkbox", async (options: { choices: { value: string; checked?: boolean }[] }) => options.choices.filter((c) => c.checked).map((c) => c.value)),
+    ...overrides,
+  });
+
+test("--update installs the updates of what is in use and skips images no emulator uses", async () => {
+  assert.equal(await main(["--update"], maintainDeps()), EXIT.ok);
+  assert.deepEqual(calls.installPackages![0]![2], ["platform-tools", IMG37]);
+  assert.match(text(), /1 newer system image skipped.*android-30/);
+  assert.match(text(), /now use the newer system image, their data is kept/);
+});
+
+test("--update --dry-run, answering no and being up to date change nothing", async () => {
+  assert.equal(await main(["--update", "--dry-run"], maintainDeps()), EXIT.ok);
+  assert.equal(await main(["--update"], maintainDeps({ confirm: spy("confirm", async () => false) })), EXIT.ok);
+  assert.equal(await main(["--update"], maintainDeps({ listUpdates: spy("listUpdates", async () => []) })), EXIT.ok);
+  assert.equal(calls.installPackages, undefined);
+  assert.match(text(), /up to date/);
+});
+
+test("--update fails when it cannot ask for updates or an install fails", async () => {
+  assert.equal(await main(["--update"], maintainDeps({ listUpdates: spy("listUpdates", async () => null) })), EXIT.failed);
+  assert.equal(await main(["--update", "--yes"], maintainDeps({ installPackages: spy("installPackages", () => false) })), EXIT.failed);
+});
+
+test("--prune offers everything unused, all selected, and removes what you pick", async () => {
+  assert.equal(await main(["--prune"], maintainDeps()), EXIT.ok);
+  const choices = (calls.checkbox![0]![0] as { choices: { value: string; checked: boolean }[] }).choices;
+  assert.deepEqual(choices.map((c) => [c.value, c.checked]), [["platforms;android-30", true], [IMG30, true]]);
+  assert.deepEqual(calls.uninstallPackage!.map((c) => c[2]), ["platforms;android-30", IMG30]);
+});
+
+test("--prune --yes removes everything unused, --dry-run removes nothing, and no is no", async () => {
+  await main(["--prune", "--yes"], maintainDeps());
+  assert.deepEqual(calls.uninstallPackage!.map((c) => c[2]), ["platforms;android-30", IMG30]);
+  calls.uninstallPackage = [];
+  await main(["--prune", "--dry-run"], maintainDeps());
+  await main(["--prune"], maintainDeps({ confirm: spy("confirm", async () => false) }));
+  assert.equal(calls.uninstallPackage.length, 0);
+  assert.match(text(), /would remove .*android-30/);
+});
+
+test("--prune has nothing to do when every image is used, and refuses when an emulator cannot be read", async () => {
+  assert.equal(await main(["--prune"], maintainDeps({ listInstalledPackages: spy("l", async () => new Set([IMG37, "platforms;android-37.0"])) })), EXIT.ok);
+  assert.match(text(), /Nothing to remove/);
+  assert.equal(await main(["--prune"], maintainDeps({ avdImage: spy("avdImage", () => null) })), EXIT.failed);
+  assert.match(text(), /Could not read which system image/);
+});
+
+test("--prune without a terminal needs --yes or --dry-run", async () => {
+  assert.equal(await main(["--prune"], maintainDeps({ interactive: false })), EXIT.usage);
+});
+
+test("--prune goes on after a package that cannot be removed, and shows why", async () => {
+  const images = new Set([IMG37, "system-images;android-27;google_apis;arm64-v8a", IMG30]);
+  const deps = maintainDeps({
+    listInstalledPackages: spy("l", async () => images),
+    uninstallPackage: spy("uninstallPackage", async (_sdk: string, _jdk: string, id: string) =>
+      id === IMG30 ? { output: "Loading local repository...\n[=====] 49% Loading\nInfo: \"Uninstall X\" failed.", exitCode: 1 } : { output: "", exitCode: 0 }),
+  });
+  assert.equal(await main(["--prune", "--yes"], deps), EXIT.failed);
+  assert.equal(calls.uninstallPackage!.length, 2, "the other package is still removed");
+  assert.match(text(), /Removed system-images;android-27/);
+  assert.match(text(), /Removing system-images;android-30.* failed\n.*"Uninstall X" failed/);
+  assert.doesNotMatch(text(), /49%/);
+});
+
+// ─── the spinner while we wait ──────────────────────────────────────────────
+
+const spinnerTexts = () => (calls.startSpinner ?? []).map((c) => c[0] as string);
+
+test("looking at the machine shows a spinner that says what we are doing, per command", async () => {
+  await main(["--check"], fakeDeps());
+  assert.equal(spinnerTexts()[0], "Checking what is set up...");
+  for (const key of Object.keys(calls)) delete calls[key];
+  await main(["Pixel_8"], fakeDeps());
+  assert.equal(spinnerTexts()[0], "Checking your setup...");
+  for (const key of Object.keys(calls)) delete calls[key];
+  await main(["--delete", "Pixel_8", "--yes"], deleteDeps());
+  assert.deepEqual(spinnerTexts(), ["Looking up your emulators...", "Deleting Pixel_8..."]);
+});
+
+test("--update and --prune say what they look for", async () => {
+  await main(["--update", "--dry-run"], maintainDeps());
+  assert.deepEqual(spinnerTexts(), ["Checking your Android SDK...", "Looking for updates..."]);
+  for (const key of Object.keys(calls)) delete calls[key];
+  await main(["--prune", "--dry-run"], maintainDeps());
+  assert.deepEqual(spinnerTexts(), ["Checking your Android SDK...", "Looking for SDK packages no emulator uses..."]);
+});
+
+test("the spinner is gone again when the work fails", async () => {
+  const stopped: string[] = [];
+  const deps = maintainDeps({
+    startSpinner: spy("startSpinner", (text: string) => () => stopped.push(text)),
+    listUpdates: spy("listUpdates", async () => { throw new Error("boom"); }),
+  });
+  await assert.rejects(main(["--update"], deps), /boom/);
+  assert.deepEqual(stopped, ["Checking your Android SDK...", "Looking for updates..."]);
 });

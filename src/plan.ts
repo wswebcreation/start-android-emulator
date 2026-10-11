@@ -9,6 +9,8 @@ export interface Step {
   /** What this step is and why it is needed, shown when it is missing */
   description: string;
   done: boolean;
+  /** What the step does, as a short verb phrase for the question: "create Pixel_9_API_37_0" */
+  action?: string;
   /** False for something that is nice to have: it does not stop an emulator from starting. Default true. */
   required?: boolean;
   /** Shown behind a step that is already done */
@@ -52,7 +54,7 @@ export async function runPlan(title: string, steps: Step[]): Promise<PlanResult>
 
   const chosen = await choose(missing);
   if (chosen.length === 0) {
-    warn("Nothing installed.");
+    warn("Nothing was changed.");
     return { ok: false, applied: [], declined: true };
   }
 
@@ -72,10 +74,11 @@ async function choose(missing: Step[]): Promise<Step[]> {
   console.log();
   if (settings.yes) return missing;
 
+  const only = missing.length === 1 ? missing[0]!.action : undefined;
   const answer = await select({
-    message: `Set up the ${missing.length} missing item${missing.length === 1 ? "" : "s"} now?`,
+    message: only ? `${only.charAt(0).toUpperCase()}${only.slice(1)} now?` : `Set up the ${missing.length} missing item${missing.length === 1 ? "" : "s"} now?`,
     choices: [
-      { value: "all", name: "Yes, set everything up" },
+      { value: "all", name: only ? "Yes, go ahead" : "Yes, set everything up" },
       ...(missing.length > 1 ? [{ value: "some", name: "Let me choose what to install" }] : []),
       { value: "none", name: "No, exit" },
     ],

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { download, extractArchive } from "../download.ts";
 import { MIN_JAVA, exe, isValidJavaHome, javaMajor } from "../java.ts";
 import { sdkManagerProxyArgs } from "../network.ts";
-import { IS_MAC, IS_WIN, run, runFile } from "../shell.ts";
+import { IS_MAC, IS_WIN, run, runFile, runFileAsync, type RunResult } from "../shell.ts";
 
 const OS_NAME = IS_MAC ? "mac" : IS_WIN ? "win" : "linux";
 
@@ -80,10 +80,10 @@ export function toolEnv(sdk: string, jdk: string): NodeJS.ProcessEnv {
 }
 
 /** The package ids that are installed (like "emulator"), or null when sdkmanager is missing or fails. */
-export function listInstalledPackages(sdk: string, jdk: string): Set<string> | null {
+export async function listInstalledPackages(sdk: string, jdk: string): Promise<Set<string> | null> {
   const sdkmanager = sdkTool(sdk, "sdkmanager");
   if (!sdkmanager) return null;
-  const { output, exitCode } = runFile(sdkmanager, [`--sdk_root=${sdk}`, "--list_installed"], { env: toolEnv(sdk, jdk) });
+  const { output, exitCode } = await runFileAsync(sdkmanager, [`--sdk_root=${sdk}`, "--list_installed"], { env: toolEnv(sdk, jdk) });
   if (exitCode !== 0) return null;
   const installed = new Set<string>();
   for (const line of output.split("\n")) {
@@ -125,3 +125,47 @@ export function androidEnvGaps(): EnvGaps {
   if (!isValidJavaHome(javaHome) || (javaMajor(javaHome) ?? 0) < MIN_JAVA) vars.push("JAVA_HOME");
   return { vars, pathMissing: !run("adb --version") };
 }
+
+export interface PackageUpdate {
+  id: string;
+  installed: string;
+  available: string;
+}
+
+/** The "Available Updates" part of `sdkmanager --list`. */
+export function parseUpdates(output: string): PackageUpdate[] {
+  const updates: PackageUpdate[] = [];
+  let inSection = false;
+  for (const line of output.replace(/\r/g, "\n").split("\n")) {
+    if (/^\s*Available Updates:/.test(line)) {
+      inSection = true;
+      continue;
+    }
+    if (!inSection) continue;
+    const [id = "", installed = "", available = ""] = line.split("|").map((part) => part.trim());
+    if (/^[a-z][\w.-]*(;[\w.-]+)*$/i.test(id) && id !== "ID" && available) updates.push({ id, installed, available });
+  }
+  return updates;
+}
+
+/** The packages that have a newer version, or null when sdkmanager is missing or fails (offline). */
+export async function listUpdates(sdk: string, jdk: string): Promise<PackageUpdate[] | null> {
+  const sdkmanager = sdkTool(sdk, "sdkmanager");
+  if (!sdkmanager) return null;
+  const { output, exitCode } = await runFileAsync(sdkmanager, [`--sdk_root=${sdk}`, ...sdkManagerProxyArgs(), "--list"], { env: toolEnv(sdk, jdk) });
+  return exitCode === 0 ? parseUpdates(output) : null;
+}
+
+/** The folder of a package in the SDK: "system-images;android-30;google_apis;arm64-v8a" is system-images/android-30/google_apis/arm64-v8a. */
+export const packageFolder = (sdk: string, id: string) => join(sdk, ...id.split(";"));
+
+/** Uninstall one package. The output is kept: sdkmanager says little when it fails, and a progress bar would hide it. */
+export async function uninstallPackage(sdk: string, jdk: string, id: string): Promise<RunResult> {
+  const sdkmanager = sdkTool(sdk, "sdkmanager");
+  if (!sdkmanager) return { output: "sdkmanager was not found, the command-line tools are not installed", exitCode: 1 };
+  return runFileAsync(sdkmanager, [`--sdk_root=${sdk}`, "--verbose", "--uninstall", id], { env: toolEnv(sdk, jdk) });
+}
+
+/** What sdkmanager said, without the progress bar and the list of everything that is installed. */
+export const sdkManagerMessages = (output: string): string[] =>
+  output.replace(/\r/g, "\n").split("\n").map((l) => l.trim()).filter((l) => l && !/^\[[ =]*\]/.test(l) && !/^Loading |^Info: SDK Manager found/.test(l));
