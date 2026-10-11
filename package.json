@@ -1,6 +1,6 @@
 {
   "name": "start-android-emulator",
-  "version": "3.0.2",
+  "version": "4.0.0",
   "description": "Start an Android emulator from your terminal, and set up Java and the Android SDK when they are missing",
   "bin": {
     "start-android-emulator": "dist/cli.js"
