@@ -140,6 +140,24 @@ const version = resolveVersion("37.0", versions);
 await setupAndroid(namedTarget(version, ["Test_1_API_{api}", "Test_2_API_{api}"]));
 ```
 
+To build the plan yourself, for example with your own AVD names and an extra step of your own, use `planAndroid` and `runPlan`. `configure` does what `--yes` and `--dry-run` do for the CLI.
+
+```ts
+import { configure, fetchVersions, inspect, namedTarget, planAndroid, resolveVersion, runPlan, type Step } from "start-android-emulator";
+
+configure({ yes: false, dryRun: false });
+const { versions } = await fetchVersions();
+const version = resolveVersion("37.0", versions);
+const steps = planAndroid(await inspect(), namedTarget(version, [
+  { name: "Workshop_1_Pixel_10_API_{api}", device: { profile: "pixel_9", skin: "pixel_10" } },
+  { name: "Workshop_2_Pixel_10_API_{api}", device: { profile: "pixel_9", skin: "pixel_10" } },
+]));
+const myStep: Step = { id: "demo-app", title: "Download the demo app", description: "The app used in the workshop", done: false, apply: async () => true };
+await runPlan("This is what we need for the workshop:", [...steps, myStep]);
+```
+
+Every `Step` needs an `id`. Use `dry(message)` in your own steps to print what would have been done in a dry run.
+
 `main(argv)` runs the whole CLI and returns the exit code, for example `await main(["--create", "Test_1_API_{api}", "--create", "Test_2_API_{api}", "--yes"])`.
 
 ## Upgrading from 3.x
