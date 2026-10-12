@@ -6,7 +6,7 @@ import { pipeline } from "node:stream/promises";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import { IS_WIN, runFile } from "./shell.ts";
 
-const mb = (bytes: number) => (bytes / 1024 / 1024).toFixed(0);
+const mb = (bytes: number) => (bytes / 1024 / 1024).toFixed(1);
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /** An error that retrying will not fix (a wrong url, no permission). */
@@ -46,12 +46,13 @@ const clearLine = () => process.stdout.isTTY && process.stdout.write(`\r${" ".re
 
 async function fetchInto(url: string, part: string, label: string): Promise<void> {
   const existing = await stat(part).then((s) => s.size, () => 0);
-  const res = await fetch(url, { redirect: "follow", headers: existing > 0 ? { range: `bytes=${existing}-` } : {} });
+  // identity: a proxy or virus scanner must not compress the body, fetch would unpack it and the length would no longer match
+  const res = await fetch(url, { redirect: "follow", headers: { "accept-encoding": "identity", ...(existing > 0 ? { range: `bytes=${existing}-` } : {}) } });
 
   if (res.status === 416) {
-    // We asked for a part the server does not have: what we have is not usable, start again
+    // We asked for a part the server does not have: what we have is not usable, start again without a range
     await rm(part, { force: true });
-    throw new Error("the partial download could not be continued");
+    return fetchInto(url, part, label);
   }
   if (!res.ok || !res.body) {
     const message = `Download failed (HTTP ${res.status}): ${url}`;
@@ -61,7 +62,9 @@ async function fetchInto(url: string, part: string, label: string): Promise<void
   // 206 = the server continues where we stopped, 200 = it sends everything again
   const resumed = res.status === 206 && existing > 0;
   const offset = resumed ? existing : 0;
-  const length = Number(res.headers.get("content-length")) || 0;
+  // With a content-encoding, content-length is the size of the encoded body, not of what we receive
+  const encoded = !["", "identity"].includes(res.headers.get("content-encoding")?.trim().toLowerCase() ?? "");
+  const length = encoded ? 0 : Number(res.headers.get("content-length")) || 0;
   const total = length ? offset + length : 0;
   const body = Readable.fromWeb(res.body as WebReadableStream);
   let received = offset;
@@ -77,7 +80,7 @@ async function fetchInto(url: string, part: string, label: string): Promise<void
   });
 
   await pipeline(body, createWriteStream(part, { flags: resumed ? "a" : "w" }));
-  if (total && received !== total) throw new Error(`only ${mb(received)} of ${mb(total)} MB arrived`);
+  if (total && received < total) throw new Error(`only ${mb(received)} of ${mb(total)} MB arrived`);
 }
 
 /**

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
+import { gzipSync } from "node:zlib";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,7 +14,8 @@ const payload = Buffer.alloc(3 * 1024 * 1024, "a");
 let server: Server;
 let base: string;
 let dir: string;
-const hits: Record<"flaky" | "ignores" | "unsat", string[]> = { flaky: [], ignores: [], unsat: [] };
+const hits: Record<"flaky" | "ignores" | "unsat" | "short", string[]> = { flaky: [], ignores: [], unsat: [], short: [] };
+const seenEncodings: (string | undefined)[] = [];
 const noWait = { wait: async () => {} };
 
 before(async () => {
@@ -48,6 +50,21 @@ before(async () => {
       hits.unsat.push(req.headers.range ?? 'none')
       if (range) res.writeHead(416).end()
       else res.writeHead(200, { 'content-length': payload.length }).end(payload)
+    } else if (req.url === '/gzip') {
+      // Something on the way compressed the body: content-length is the compressed size, smaller than what arrives
+      seenEncodings.push(req.headers['accept-encoding'])
+      const packed = gzipSync(payload)
+      res.writeHead(200, { 'content-length': packed.length, 'content-encoding': 'gzip' }).end(packed)
+    } else if (req.url === '/short') {
+      // Always too few bytes, but only when nothing is asked to continue
+      hits.short.push(req.headers.range ?? 'none')
+      if (!range) {
+        res.writeHead(200, { 'content-length': payload.length })
+        res.end(payload.subarray(0, 1024 * 1024))
+      } else {
+        const from = Number(range[1])
+        res.writeHead(206, { 'content-length': payload.length - from }).end(payload.subarray(from))
+      }
     } else if (req.url === '/no-length') {
       res.write('chunked body')
       res.end()
@@ -81,7 +98,7 @@ test('download shows progress in a terminal and cleans the line afterwards', asy
     process.stdout.isTTY = isTTY
     mock.restoreAll()
   }
-  assert.ok(written.some((text) => /Downloading test \d+% \(\d+ \/ 3 MB\)/.test(text)))
+  assert.ok(written.some((text) => /Downloading test \d+% \([\d.]+ \/ 3\.0 MB\)/.test(text)))
   assert.equal(readFileSync(join(dir, 'no-length.bin'), 'utf8'), 'chunked body')
 })
 
@@ -143,6 +160,25 @@ test('download starts over when the server cannot continue the part it has', asy
   }
   assert.deepEqual(readFileSync(dest), payload)
   assert.deepEqual(hits.unsat, ['bytes=8-', 'none'])
+})
+
+test('download asks for an uncompressed body and accepts a body that is encoded on the way', async () => {
+  const dest = join(dir, 'gzip.bin')
+  await download(`${base}/gzip`, dest, 'x', noWait)
+  assert.deepEqual(readFileSync(dest), payload)
+  assert.deepEqual(seenEncodings, ['identity'])
+})
+
+test('download retries and continues when too few bytes arrive', async () => {
+  const dest = join(dir, 'short.bin')
+  mock.method(console, 'log', () => {})
+  try {
+    await download(`${base}/short`, dest, 'x', noWait)
+  } finally {
+    mock.restoreAll()
+  }
+  assert.deepEqual(readFileSync(dest), payload)
+  assert.deepEqual(hits.short, ['none', `bytes=${1024 * 1024}-`])
 })
 
 test('download gives up after the retries on a server error, but does not retry a wrong url', async () => {
