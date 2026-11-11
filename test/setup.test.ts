@@ -11,6 +11,7 @@ const javaMajor = mock.fn((_home: string): number | null => 21);
 const installCmdlineTools = mock.fn(async (_sdk: string) => {});
 const acceptLicenses = mock.fn((_sdk: string, _jdk: string) => true);
 const installPackages = mock.fn((_sdk: string, _jdk: string, _packages: string[]) => true);
+const listInstalledPackages = mock.fn(async (_sdk: string, _jdk: string): Promise<Set<string> | null> => new Set(ALL_PACKAGES));
 const hasSkin = mock.fn((_sdk: string, _skin: string) => false);
 const installSkin = mock.fn(async (_sdk: string, _skin: string) => {});
 const createAvd = mock.fn((_sdk: string, _jdk: string, _options: unknown) => ({ output: "", exitCode: 0 }));
@@ -18,7 +19,7 @@ const persistEnv = mock.fn((_changes: unknown) => "~/.zshrc");
 const applyToProcess = mock.fn((_changes: unknown) => {});
 
 mock.module("../src/java.ts", { namedExports: { ...realJava, installJdk, javaMajor } });
-mock.module("../src/android/sdk.ts", { namedExports: { ...realSdk, installCmdlineTools, acceptLicenses, installPackages } });
+mock.module("../src/android/sdk.ts", { namedExports: { ...realSdk, installCmdlineTools, acceptLicenses, installPackages, listInstalledPackages } });
 mock.module("../src/android/avd.ts", { namedExports: { ...realAvd, hasSkin, installSkin, createAvd } });
 mock.module("../src/env.ts", { namedExports: { persistEnv, applyToProcess } });
 const { defaultTarget, namedTarget, planAndroid } = await import("../src/android/setup.ts");
@@ -58,9 +59,10 @@ beforeEach(() => {
   settings.dryRun = false;
   output = [];
   mock.method(console, "log", (...args: unknown[]) => output.push(args.join(" ")));
-  for (const fn of [installJdk, installCmdlineTools, acceptLicenses, installPackages, hasSkin, installSkin, createAvd, persistEnv, applyToProcess]) fn.mock.resetCalls();
+  for (const fn of [listInstalledPackages, installJdk, installCmdlineTools, acceptLicenses, installPackages, hasSkin, installSkin, createAvd, persistEnv, applyToProcess]) fn.mock.resetCalls();
   acceptLicenses.mock.mockImplementation(() => true);
   installPackages.mock.mockImplementation(() => true);
+  listInstalledPackages.mock.mockImplementation(async () => new Set(ALL_PACKAGES));
   createAvd.mock.mockImplementation(() => ({ output: "", exitCode: 0 }));
   hasSkin.mock.mockImplementation(() => false);
   installSkin.mock.mockImplementation(async () => {});
@@ -201,6 +203,21 @@ test("a failing license or package install is reported", async () => {
   assert.equal(await packages.apply(), false);
   acceptLicenses.mock.mockImplementation(() => false);
   assert.equal(await packages.apply(), false);
+});
+
+test("a package that is missing after the install fails the step, even when sdkmanager exits 0", async () => {
+  const state: Inspection = { ...bare, java, toolsReady: true };
+  const packages = planAndroid(state, defaultTarget(v37)).find((s) => s.id === "packages")!;
+  listInstalledPackages.mock.mockImplementation(async () => new Set(["platform-tools", "emulator"]));
+  assert.equal(await packages.apply(), false);
+  assert.match(output.join("\n"), /are not installed: .*system-images/);
+  assert.doesNotMatch(output.join("\n"), /SDK packages installed/);
+
+  output.length = 0;
+  listInstalledPackages.mock.mockImplementation(async () => null);
+  assert.equal(await packages.apply(), false);
+  assert.match(output.join("\n"), /could not check/);
+  assert.doesNotMatch(output.join("\n"), /SDK packages installed/);
 });
 
 test("a skin that cannot be downloaded is only a warning, a failed emulator is an error", async () => {

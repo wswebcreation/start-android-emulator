@@ -4,7 +4,7 @@ import { applyToProcess, persistEnv } from "../env.ts";
 import { fail, info, ok, settings, warn } from "../ui.ts";
 import { DEFAULT_DEVICE, avdName, createAvd, expandName, hasSkin, installSkin, type DeviceProfile } from "./avd.ts";
 import { type Inspection, inspect } from "./inspect.ts";
-import { acceptLicenses, installCmdlineTools, installPackages, platformToolsDirs } from "./sdk.ts";
+import { acceptLicenses, installCmdlineTools, installPackages, listInstalledPackages, platformToolsDirs } from "./sdk.ts";
 import { requiredPackages, type AndroidVersion } from "./versions.ts";
 
 export interface AvdSpec {
@@ -161,7 +161,22 @@ async function installPackagesStep(ctx: Context, missing: string[]): Promise<boo
     fail("The SDK packages need Java and the command-line tools first. Include those steps and run the setup again.");
     return false;
   }
-  if (missing.length === 0 || (acceptLicenses(ctx.sdk, ctx.java.home) && installPackages(ctx.sdk, ctx.java.home, missing))) {
+  if (missing.length === 0) {
+    ok("SDK packages installed");
+    return true;
+  }
+  if (acceptLicenses(ctx.sdk, ctx.java.home) && installPackages(ctx.sdk, ctx.java.home, missing)) {
+    // sdkmanager exits 0 when it does not know a package, so the exit code is not proof: look at what is installed now
+    const installed = await listInstalledPackages(ctx.sdk, ctx.java.home);
+    if (!installed) {
+      fail("sdkmanager finished, but we could not check which packages are installed, see the output above");
+      return false;
+    }
+    const stillMissing = missing.filter((p) => !installed.has(p));
+    if (stillMissing.length > 0) {
+      fail(`sdkmanager finished, but these packages are not installed: ${stillMissing.join(", ")}. See the output above.`);
+      return false;
+    }
     ok("SDK packages installed");
     return true;
   }

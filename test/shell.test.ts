@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { run, runFile, runFileAsync } from "../src/shell.ts";
+import { quoteWinArg, run, runFile, runFileAsync, spawnTarget, winCommandLine } from "../src/shell.ts";
 
 test("run returns the trimmed output, or null when the command fails", () => {
   assert.equal(run(`"${process.execPath}" -p "1+1"`), "2");
@@ -33,4 +33,34 @@ test("runFileAsync gives the same answers without blocking, and never rejects", 
   await runFileAsync(process.execPath, ["-e", "setTimeout(() => {}, 300)"]);
   clearTimeout(timer);
   assert.equal(ticked, true);
+});
+
+test("quoteWinArg leaves plain arguments alone and quotes what cmd.exe would split or interpret", () => {
+  assert.equal(quoteWinArg("--install"), "--install");
+  assert.equal(quoteWinArg("platform-tools"), "platform-tools");
+  assert.equal(quoteWinArg("system-images;android-37.0;google_apis;x86_64"), '"system-images;android-37.0;google_apis;x86_64"');
+  assert.equal(quoteWinArg("C:\\Users\\Jan Jansen\\Sdk"), '"C:\\Users\\Jan Jansen\\Sdk"');
+  assert.equal(quoteWinArg("--sdk_root=C:\\Sdk"), '"--sdk_root=C:\\Sdk"');
+  for (const ch of ["&", "^", "|", "<", ">", "%", "(", ")", ","]) assert.equal(quoteWinArg(`a${ch}b`), `"a${ch}b"`);
+  assert.equal(quoteWinArg(""), '""');
+});
+
+test("quoteWinArg doubles an embedded double quote", () => {
+  assert.equal(quoteWinArg('say "hi"'), '"say ""hi"""');
+  assert.equal(quoteWinArg('a"b'), '"a""b"');
+});
+
+test("winCommandLine always quotes the program and quotes arguments when needed", () => {
+  assert.equal(
+    winCommandLine("C:\\Android Sdk\\sdkmanager.bat", ["--install", "system-images;android-37.0;google_apis;x86_64"]),
+    '"C:\\Android Sdk\\sdkmanager.bat" --install "system-images;android-37.0;google_apis;x86_64"',
+  );
+});
+
+test("spawnTarget runs the program directly outside Windows and through cmd.exe /d /s /c on Windows", () => {
+  assert.deepEqual(spawnTarget("/sdk/avdmanager", ["-k", "a;b"], false), { command: "/sdk/avdmanager", args: ["-k", "a;b"] });
+  const win = spawnTarget("C:\\sdk\\avdmanager.bat", ["create", "-k", "system-images;x"], true);
+  assert.deepEqual(win.args.slice(0, 3), ["/d", "/s", "/c"]);
+  assert.equal(win.args[3], '""C:\\sdk\\avdmanager.bat" create -k "system-images;x""');
+  assert.equal(win.windowsVerbatimArguments, true);
 });

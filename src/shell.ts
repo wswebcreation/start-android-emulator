@@ -18,6 +18,33 @@ export interface RunFileOptions {
   timeout?: number;
 }
 
+const NEEDS_QUOTES = /[\s;&^|<>%(),="]/;
+
+/**
+ * Quote one argument for cmd.exe. Plain arguments stay as they are. Anything cmd.exe or the batch file would split or
+ * interpret (";" in "system-images;android-37.0;google_apis;x86_64", "&", spaces, ...) goes between double quotes, with an
+ * embedded " doubled, which is how both cmd.exe and the C runtime read a quote inside a quoted argument.
+ */
+export function quoteWinArg(arg: string): string {
+  if (arg !== "" && !NEEDS_QUOTES.test(arg)) return arg;
+  return `"${arg.replaceAll('"', '""')}"`;
+}
+
+/** The command line for `cmd.exe /d /s /c`: the program is always quoted (paths with spaces), the arguments when needed. */
+export function winCommandLine(file: string, args: string[]): string {
+  return [`"${file}"`, ...args.map(quoteWinArg)].join(" ");
+}
+
+/**
+ * How to start a program. The SDK tools are .bat files on Windows, so they run through cmd.exe. We build the command line
+ * ourselves and pass it verbatim: with `shell: true` Node only joins the arguments with spaces (no quoting, and DEP0190).
+ * The outer quotes are removed again by /s.
+ */
+export function spawnTarget(file: string, args: string[], win = IS_WIN): { command: string; args: string[]; windowsVerbatimArguments?: boolean } {
+  if (!win) return { command: file, args };
+  return { command: process.env.ComSpec || "cmd.exe", args: ["/d", "/s", "/c", `"${winCommandLine(file, args)}"`], windowsVerbatimArguments: true };
+}
+
 /** Run a command line and return its output, or null when it fails. */
 export function run(cmd: string, env: NodeJS.ProcessEnv = process.env): string | null {
   try {
@@ -29,15 +56,16 @@ export function run(cmd: string, env: NodeJS.ProcessEnv = process.env): string |
 
 /**
  * Run an executable with arguments (no shell quoting issues for paths with spaces).
- * On Windows the SDK tools are .bat files, so they need a shell.
+ * On Windows the SDK tools are .bat files, so they run through cmd.exe, see spawnTarget.
  */
 export function runFile(file: string, args: string[] = [], { env = process.env, input, inherit = false, timeout }: RunFileOptions = {}): RunResult {
-  const result = spawnSync(IS_WIN ? `"${file}"` : file, args, {
+  const target = spawnTarget(file, args);
+  const result = spawnSync(target.command, target.args, {
+    windowsVerbatimArguments: target.windowsVerbatimArguments,
     encoding: "utf8",
     env,
     input,
     timeout,
-    shell: IS_WIN,
     stdio: inherit ? ["pipe", "inherit", "inherit"] : "pipe",
   });
   const output = ((result.stdout || "") + (result.stderr || "")).trim();
@@ -51,7 +79,8 @@ export function runFile(file: string, args: string[] = [], { env = process.env, 
 export function runFileAsync(file: string, args: string[] = [], { env = process.env, input, timeout }: Omit<RunFileOptions, "inherit"> = {}): Promise<RunResult> {
   return new Promise((resolve) => {
     let output = "";
-    const child = spawn(IS_WIN ? `"${file}"` : file, args, { env, shell: IS_WIN, timeout, stdio: ["pipe", "pipe", "pipe"] });
+    const target = spawnTarget(file, args);
+    const child = spawn(target.command, target.args, { env, windowsVerbatimArguments: target.windowsVerbatimArguments, timeout, stdio: ["pipe", "pipe", "pipe"] });
     child.stdout.on("data", (chunk) => (output += chunk));
     child.stderr.on("data", (chunk) => (output += chunk));
     child.on("error", (error) => resolve({ output: error.message, exitCode: 1 }));
