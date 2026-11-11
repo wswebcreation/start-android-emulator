@@ -105,6 +105,7 @@ Setup
 
 Other
   --check            Only show what is set up and what is missing, exits with 1 when something is missing
+  --debug            Log every command that is run, with its exit code and output (for a bug report)
   -y, --yes          Answer yes to every question (also needed to set up without a terminal)
   -h, --help         Show this help
   -v, --version      Show the version
@@ -140,7 +141,7 @@ const version = resolveVersion("37.0", versions);
 await setupAndroid(namedTarget(version, ["Test_1_API_{api}", "Test_2_API_{api}"]));
 ```
 
-To build the plan yourself, for example with your own AVD names and an extra step of your own, use `planAndroid` and `runPlan`. `configure` does what `--yes` and `--dry-run` do for the CLI.
+To build the plan yourself, for example with your own AVD names and an extra step of your own, use `planAndroid` and `runPlan`. `configure` does what `--yes`, `--dry-run` and `--debug` do for the CLI.
 
 ```ts
 import { configure, fetchVersions, inspect, namedTarget, planAndroid, resolveVersion, runPlan, type Step } from "start-android-emulator";

@@ -8,6 +8,7 @@ test("without arguments everything is off, and we wait for the boot", () => {
     wipeData: false,
     coldBoot: false,
     verbose: false,
+    debug: false,
     dns: undefined,
     wait: true,
     setup: undefined,

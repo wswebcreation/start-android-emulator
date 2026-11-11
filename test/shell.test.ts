@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import { quoteWinArg, run, runFile, runFileAsync, spawnTarget, winCommandLine } from "../src/shell.ts";
 
 test("run returns the trimmed output, or null when the command fails", () => {
@@ -65,4 +65,29 @@ test("spawnTarget runs the program directly outside Windows and through cmd.exe 
   assert.deepEqual(win.args.slice(0, 3), ["/d", "/s", "/c"]);
   assert.equal(win.args[3], '""C:\\sdk\\avdmanager.bat" create -k "system-images;x""');
   assert.equal(win.windowsVerbatimArguments, true);
+});
+
+test("with debug on, a run is logged to stderr with its command, exit code and output", async () => {
+  const { settings } = await import("../src/ui.ts");
+  const lines: string[] = [];
+  mock.method(console, "error", (...args: unknown[]) => lines.push(args.join(" ")));
+  settings.debug = true;
+  try {
+    runFile(process.execPath, ["-p", "'hi'"]);
+    await runFileAsync(process.execPath, ["-e", "process.exit(3)"]);
+    run(`"${process.execPath}" -p "1+1"`);
+  } finally {
+    settings.debug = false;
+    mock.restoreAll();
+  }
+  const text = lines.join("\n");
+  assert.match(text, /\[debug\] \$ .*node.* -p 'hi'\nexit code 0 after \d+ ms\nhi/);
+  assert.match(text, /exit code 3 after \d+ ms, no output/);
+  assert.match(text, /\[debug\] \$ .*-p "1\+1"\n2/);
+
+  lines.length = 0;
+  mock.method(console, "error", (...args: unknown[]) => lines.push(args.join(" ")));
+  runFile(process.execPath, ["-p", "'hi'"]);
+  mock.restoreAll();
+  assert.deepEqual(lines, []);
 });

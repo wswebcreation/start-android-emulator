@@ -7,6 +7,8 @@ export interface Options {
   wipeData: boolean;
   coldBoot: boolean;
   verbose: boolean;
+  /** Log every program we run, with its output and exit code, to help find out why something fails */
+  debug: boolean;
   /** A DNS server to start with, false for --no-dns, undefined when not given (the saved choice or the default is used) */
   dns?: string | false;
   /** Wait until the emulator has booted. --no-wait starts it and returns. */
@@ -69,6 +71,7 @@ Setup
 
 Other
   --check            Only show what is set up and what is missing, exits with 1 when something is missing
+  --debug            Log every command that is run, with its exit code and output (for a bug report)
   -y, --yes          Answer yes to every question (also needed to set up without a terminal)
   -h, --help         Show this help
   -v, --version      Show the version
@@ -111,6 +114,7 @@ export function parseOptions(argv: string[]): Options {
         "wipe-data": { type: "boolean" },
         "cold-boot": { type: "boolean" },
         verbose: { type: "boolean" },
+        debug: { type: "boolean" },
         dns: { type: "string" },
         wait: { type: "boolean" },
         setup: { type: "boolean" },
@@ -156,6 +160,7 @@ export function parseOptions(argv: string[]): Options {
     wipeData: values["wipe-data"] ?? false,
     coldBoot: values["cold-boot"] ?? false,
     verbose: values.verbose ?? false,
+    debug: values.debug ?? false,
     dns: noDns ? false : values.dns,
     wait: values.wait ?? true,
     setup: values.setup,

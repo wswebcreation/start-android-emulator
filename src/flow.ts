@@ -74,6 +74,7 @@ export async function main(argv: string[], overrides: Partial<Deps> = {}): Promi
 
     settings.yes = opts.yes;
     settings.dryRun = opts.dryRun;
+    if (opts.debug) settings.debug = true;
     return await run(opts, deps);
   } catch (e) {
     if (e instanceof UsageError) {

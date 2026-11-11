@@ -19,12 +19,13 @@ test("the index exports what a consumer needs to build and run its own plan", ()
 });
 
 test("configure changes only the options that are passed", () => {
-  api.configure({ yes: true, dryRun: true });
-  assert.deepEqual({ ...settings }, { yes: true, dryRun: true });
+  api.configure({ yes: true, dryRun: true, debug: true });
+  assert.deepEqual({ ...settings }, { yes: true, dryRun: true, debug: true });
   api.configure({ yes: false });
-  assert.deepEqual({ ...settings }, { yes: false, dryRun: true });
-  api.configure({ dryRun: false });
+  assert.deepEqual({ ...settings }, { yes: false, dryRun: true, debug: true });
+  api.configure({ dryRun: false, debug: false });
   assert.equal(settings.dryRun, false);
+  assert.equal(settings.debug, false);
 });
 
 test("configure({ yes }) decides whether runPlan asks", async () => {

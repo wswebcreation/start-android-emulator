@@ -1,5 +1,6 @@
 import { execSync, spawn, spawnSync } from "node:child_process";
 import { platform } from "node:os";
+import { debug } from "./ui.ts";
 
 export const IS_MAC = platform() === "darwin";
 export const IS_WIN = platform() === "win32";
@@ -48,8 +49,11 @@ export function spawnTarget(file: string, args: string[], win = IS_WIN): { comma
 /** Run a command line and return its output, or null when it fails. */
 export function run(cmd: string, env: NodeJS.ProcessEnv = process.env): string | null {
   try {
-    return execSync(cmd, { stdio: "pipe", encoding: "utf8", env }).trim();
-  } catch {
+    const output = execSync(cmd, { stdio: "pipe", encoding: "utf8", env }).trim();
+    debug(`$ ${cmd}\n${output}`);
+    return output;
+  } catch (e) {
+    debug(`$ ${cmd}\nfailed: ${(e as Error).message.trim()}`);
     return null;
   }
 }
@@ -60,6 +64,7 @@ export function run(cmd: string, env: NodeJS.ProcessEnv = process.env): string |
  */
 export function runFile(file: string, args: string[] = [], { env = process.env, input, inherit = false, timeout }: RunFileOptions = {}): RunResult {
   const target = spawnTarget(file, args);
+  const started = Date.now();
   const result = spawnSync(target.command, target.args, {
     windowsVerbatimArguments: target.windowsVerbatimArguments,
     encoding: "utf8",
@@ -70,7 +75,13 @@ export function runFile(file: string, args: string[] = [], { env = process.env, 
   });
   // A program that cannot start has no output, only an error: keep the reason so a failure is never silent
   const output = ((result.stdout || "") + (result.stderr || "") || (result.error ? result.error.message : "")).trim();
+  debugRun(file, args, output, result.status ?? 1, started, inherit);
   return { output, exitCode: result.status ?? 1 };
+}
+
+/** The debug log of one program run: what we started, how it ended, and what it said. */
+function debugRun(file: string, args: string[], output: string, exitCode: number, started: number, inherit = false): void {
+  debug(`$ ${[file, ...args].join(" ")}\nexit code ${exitCode} after ${Date.now() - started} ms${inherit ? ", its output was shown above" : output ? `\n${output}` : ", no output"}`);
 }
 
 /**
@@ -80,12 +91,17 @@ export function runFile(file: string, args: string[] = [], { env = process.env, 
 export function runFileAsync(file: string, args: string[] = [], { env = process.env, input, timeout }: Omit<RunFileOptions, "inherit"> = {}): Promise<RunResult> {
   return new Promise((resolve) => {
     let output = "";
+    const started = Date.now();
+    const done = (result: RunResult) => {
+      debugRun(file, args, result.output, result.exitCode, started);
+      resolve(result);
+    };
     const target = spawnTarget(file, args);
     const child = spawn(target.command, target.args, { env, windowsVerbatimArguments: target.windowsVerbatimArguments, timeout, stdio: ["pipe", "pipe", "pipe"] });
     child.stdout.on("data", (chunk) => (output += chunk));
     child.stderr.on("data", (chunk) => (output += chunk));
-    child.on("error", (error) => resolve({ output: error.message, exitCode: 1 }));
-    child.on("close", (code) => resolve({ output: output.trim(), exitCode: code ?? 1 }));
+    child.on("error", (error) => done({ output: error.message, exitCode: 1 }));
+    child.on("close", (code) => done({ output: output.trim(), exitCode: code ?? 1 }));
     child.stdin.on("error", () => {});
     child.stdin.end(input);
   });

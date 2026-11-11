@@ -29,7 +29,14 @@ export const dim = (msg: string) => `${DIM}${msg}${RESET}`;
 export const settings = {
   yes: !process.stdin.isTTY,
   dryRun: false,
+  /** --debug, or START_ANDROID_EMULATOR_DEBUG=1 for callers that cannot pass a flag (like an npm script) */
+  debug: /^(1|true)$/i.test(process.env.START_ANDROID_EMULATOR_DEBUG ?? ""),
 };
+
+/** A line of the debug log. Goes to stderr, so it never ends up in output that is piped or parsed. */
+export function debug(msg: string): void {
+  if (settings.debug) console.error(`${DIM}[debug] ${msg}${RESET}`);
+}
 
 /** Ask a yes/no question. With --yes (or no TTY) the default answer is taken. */
 export async function ask(message: string, defaultValue = true): Promise<boolean> {

@@ -124,6 +124,12 @@ export function diagnostics(ctx: Context): string {
   return `Environment: ${platform()} ${release()} ${arch()}, node ${process.versions.node}, SDK ${ctx.sdk}, ${java}`;
 }
 
+/** What to print under a failure: where it happened, and how to get the full log. */
+function failureDetails(ctx: Context): void {
+  info(diagnostics(ctx));
+  if (!settings.debug) info("Need more detail? Run again with --debug (or set START_ANDROID_EMULATOR_DEBUG=1) and share the log.");
+}
+
 async function installJavaStep(ctx: Context): Promise<boolean> {
   if (settings.dryRun) {
     dry(`would download Java ${JDK_FEATURE_VERSION} to ~/.jdks/temurin-${JDK_FEATURE_VERSION}`);
@@ -174,7 +180,7 @@ async function installPackagesStep(ctx: Context, missing: string[]): Promise<boo
   }
   if (!acceptLicenses(ctx.sdk, ctx.java.home)) {
     fail("Accepting the Android SDK licenses failed, see the output above");
-    info(diagnostics(ctx));
+    failureDetails(ctx);
     return false;
   }
   if (installPackages(ctx.sdk, ctx.java.home, missing)) {
@@ -183,14 +189,14 @@ async function installPackagesStep(ctx: Context, missing: string[]): Promise<boo
     if (!installed) {
       fail("sdkmanager finished, but we could not check which packages are installed, see the output above");
       info(`We wanted: ${missing.join(", ")}`);
-      info(diagnostics(ctx));
+      failureDetails(ctx);
       return false;
     }
     const stillMissing = missing.filter((p) => !installed.has(p));
     if (stillMissing.length > 0) {
       fail(`sdkmanager finished, but these packages are not installed: ${stillMissing.join(", ")}. See the output above.`);
       info(`We asked sdkmanager for: ${missing.join(", ")}`);
-      info(diagnostics(ctx));
+      failureDetails(ctx);
       return false;
     }
     ok("SDK packages installed");
@@ -198,7 +204,7 @@ async function installPackagesStep(ctx: Context, missing: string[]): Promise<boo
   }
   fail("Installing the SDK packages failed, see the output above");
   info(`We asked sdkmanager for: ${missing.join(", ")}`);
-  info(diagnostics(ctx));
+  failureDetails(ctx);
   return false;
 }
 
@@ -231,7 +237,7 @@ async function createAvdsStep(ctx: Context, target: SetupTarget, toCreate: AvdSp
       fail(`Creating ${avd.name} failed (exit code ${exitCode})`);
       info(output || "avdmanager gave no output");
       info(`System image: ${systemImage(target.version, abi())}, device: ${avd.device.profile}`);
-      info(diagnostics(ctx));
+      failureDetails(ctx);
       allCreated = false;
     }
   }
