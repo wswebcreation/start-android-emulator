@@ -201,8 +201,10 @@ test("a failing license or package install is reported", async () => {
   const packages = planAndroid(state, defaultTarget(v37)).find((s) => s.id === "packages")!;
   installPackages.mock.mockImplementation(() => false);
   assert.equal(await packages.apply(), false);
+  assert.match(output.join("\n"), /We asked sdkmanager for: .*Environment: /s);
   acceptLicenses.mock.mockImplementation(() => false);
   assert.equal(await packages.apply(), false);
+  assert.match(output.join("\n"), /Accepting the Android SDK licenses failed/);
 });
 
 test("a package that is missing after the install fails the step, even when sdkmanager exits 0", async () => {
@@ -231,7 +233,12 @@ test("a skin that cannot be downloaded is only a warning, a failed emulator is a
 
   createAvd.mock.mockImplementation(() => ({ output: "boom", exitCode: 1 }));
   assert.equal(await avds.apply(), false);
-  assert.match(output.join("\n"), /Creating Pixel_9_API_37_0 failed[\s\S]*boom/);
+  assert.match(output.join("\n"), /Creating Pixel_9_API_37_0 failed \(exit code 1\)[\s\S]*boom[\s\S]*System image: system-images;android-37\.0;google_apis;[\s\S]*Environment: /);
+
+  output.length = 0;
+  createAvd.mock.mockImplementation(() => ({ output: "", exitCode: 1 }));
+  await avds.apply();
+  assert.match(output.join("\n"), /avdmanager gave no output/);
 });
 
 test("named emulators are all created with the given skin, downloading it once", async () => {

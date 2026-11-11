@@ -68,7 +68,8 @@ export function runFile(file: string, args: string[] = [], { env = process.env, 
     timeout,
     stdio: inherit ? ["pipe", "inherit", "inherit"] : "pipe",
   });
-  const output = ((result.stdout || "") + (result.stderr || "")).trim();
+  // A program that cannot start has no output, only an error: keep the reason so a failure is never silent
+  const output = ((result.stdout || "") + (result.stderr || "") || (result.error ? result.error.message : "")).trim();
   return { output, exitCode: result.status ?? 1 };
 }
 

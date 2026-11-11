@@ -1,11 +1,12 @@
 import { MIN_JAVA, JDK_FEATURE_VERSION, installJdk, javaMajor, type JavaInstall } from "../java.ts";
 import { dry, runPlan, type PlanResult, type Step } from "../plan.ts";
 import { applyToProcess, persistEnv } from "../env.ts";
+import { arch, platform, release } from "node:os";
 import { fail, info, ok, settings, warn } from "../ui.ts";
 import { DEFAULT_DEVICE, avdName, createAvd, expandName, hasSkin, installSkin, type DeviceProfile } from "./avd.ts";
 import { type Inspection, inspect } from "./inspect.ts";
 import { acceptLicenses, installCmdlineTools, installPackages, listInstalledPackages, platformToolsDirs } from "./sdk.ts";
-import { requiredPackages, type AndroidVersion } from "./versions.ts";
+import { abi, requiredPackages, systemImage, type AndroidVersion } from "./versions.ts";
 
 export interface AvdSpec {
   name: string;
@@ -117,6 +118,12 @@ export function planAndroid(state: Inspection, target: SetupTarget): Step[] {
   ];
 }
 
+/** One line about this machine, printed with a failure so a pasted error says where it happened. */
+export function diagnostics(ctx: Context): string {
+  const java = ctx.java ? `Java ${ctx.java.major} at ${ctx.java.home}` : "no Java";
+  return `Environment: ${platform()} ${release()} ${arch()}, node ${process.versions.node}, SDK ${ctx.sdk}, ${java}`;
+}
+
 async function installJavaStep(ctx: Context): Promise<boolean> {
   if (settings.dryRun) {
     dry(`would download Java ${JDK_FEATURE_VERSION} to ~/.jdks/temurin-${JDK_FEATURE_VERSION}`);
@@ -165,22 +172,33 @@ async function installPackagesStep(ctx: Context, missing: string[]): Promise<boo
     ok("SDK packages installed");
     return true;
   }
-  if (acceptLicenses(ctx.sdk, ctx.java.home) && installPackages(ctx.sdk, ctx.java.home, missing)) {
+  if (!acceptLicenses(ctx.sdk, ctx.java.home)) {
+    fail("Accepting the Android SDK licenses failed, see the output above");
+    info(diagnostics(ctx));
+    return false;
+  }
+  if (installPackages(ctx.sdk, ctx.java.home, missing)) {
     // sdkmanager exits 0 when it does not know a package, so the exit code is not proof: look at what is installed now
     const installed = await listInstalledPackages(ctx.sdk, ctx.java.home);
     if (!installed) {
       fail("sdkmanager finished, but we could not check which packages are installed, see the output above");
+      info(`We wanted: ${missing.join(", ")}`);
+      info(diagnostics(ctx));
       return false;
     }
     const stillMissing = missing.filter((p) => !installed.has(p));
     if (stillMissing.length > 0) {
       fail(`sdkmanager finished, but these packages are not installed: ${stillMissing.join(", ")}. See the output above.`);
+      info(`We asked sdkmanager for: ${missing.join(", ")}`);
+      info(diagnostics(ctx));
       return false;
     }
     ok("SDK packages installed");
     return true;
   }
   fail("Installing the SDK packages failed, see the output above");
+  info(`We asked sdkmanager for: ${missing.join(", ")}`);
+  info(diagnostics(ctx));
   return false;
 }
 
@@ -210,8 +228,10 @@ async function createAvdsStep(ctx: Context, target: SetupTarget, toCreate: AvdSp
     if (exitCode === 0) {
       ok(`Created ${avd.name}`);
     } else {
-      fail(`Creating ${avd.name} failed`);
-      info(output);
+      fail(`Creating ${avd.name} failed (exit code ${exitCode})`);
+      info(output || "avdmanager gave no output");
+      info(`System image: ${systemImage(target.version, abi())}, device: ${avd.device.profile}`);
+      info(diagnostics(ctx));
       allCreated = false;
     }
   }

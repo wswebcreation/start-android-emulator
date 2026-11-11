@@ -18,7 +18,9 @@ test("runFile returns output and exit code, and passes input to stdin", () => {
 });
 
 test("runFile reports a missing executable as a failure", () => {
-  assert.equal(runFile("/does/not/exist").exitCode, 1);
+  const missing = runFile("/does/not/exist");
+  assert.equal(missing.exitCode, 1);
+  assert.match(missing.output, /ENOENT/);
 });
 
 test("runFileAsync gives the same answers without blocking, and never rejects", async () => {
