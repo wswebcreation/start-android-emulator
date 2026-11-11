@@ -9,6 +9,7 @@ export const COMMANDS: [command: string, what: string][] = [
   ["start-android-emulator --delete [name]", "Delete an emulator"],
   ["start-android-emulator --update", "Update the SDK packages in use"],
   ["start-android-emulator --prune", "Remove SDK packages no emulator uses"],
+  ["start-android-emulator --debug", "Something fails? Add --debug to log every command"],
 ];
 
 /** The pointer to the rest. Only on the run, --help is where it points to. */
